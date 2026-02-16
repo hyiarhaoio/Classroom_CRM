@@ -120,7 +120,7 @@ const getWageRate = (teacher, day, course) => {
     const isExam = course && course.includes('受験');
 
     if (isSaturday) {
-        return isExam ? 1350 : 1300;
+        return isExam ? 1400 : 1350;
     } else {
         return isExam ? 1300 : 1250;
     }
@@ -1795,47 +1795,49 @@ function generateGmailLink(email, subject, body) {
 }
 
 function renderDetail(id, focusTarget = null, isReadOnly = false) {
-    const s = state.students.find(s => s.id === id);
-    if (!s) {
-        contentArea.innerHTML = '<div style="padding:2rem; text-align:center; color:#64748b;">データ読み込み中、または生徒が見つかりません...</div>';
-        return;
-    }
-    pageTitle.textContent = isReadOnly ? '生徒詳細 (閲覧のみ)' : '生徒詳細';
+    try {
+        console.log('renderDetail called with ID:', id);
+        const s = state.students.find(s => s.id === id);
+        if (!s) {
+            contentArea.innerHTML = '<div style="padding:2rem; text-align:center; color:#64748b;">データ読み込み中、または生徒が見つかりません... (ID: ' + id + ')</div>';
+            return;
+        }
+        pageTitle.textContent = isReadOnly ? '生徒詳細 (閲覧のみ)' : '生徒詳細';
 
-    const cls = calculateClass(s.birthday);
-    const duration = s.joinedDate ? calculateEnrollmentDuration(s.joinedDate) : null;
-    const courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        const cls = calculateClass(s.birthday);
+        const duration = s.joinedDate ? calculateEnrollmentDuration(s.joinedDate) : null;
+        const courses = s.courses || (s.classCategory ? [s.classCategory] : []);
 
-    let classBadge = '';
-    if (courses.includes('知育')) {
-        const rawClass = cls.name.split(' ')[0];
-        const ageClass = rawClass.replace('クラス', '') + '知育';
-        classBadge += `<span style="font-size: 1rem; background:#fef9c3; color:#854d0e; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #fde047;">${ageClass}</span>`;
-    }
-    if (courses.includes('HALLO')) classBadge += `<span style="font-size: 1rem; background:#dbeafe; color:#1e40af; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #93c5fd;">HALLO</span>`;
-    if (courses.includes('受験')) classBadge += `<span style="font-size: 1rem; background:#fee2e2; color:#991b1b; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #fca5a5;">受験</span>`;
-    if (courses.includes('アストルム')) classBadge += `<span style="font-size: 1rem; background:#f3e8ff; color:#6b21a8; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #d8b4fe;">アストルム</span>`;
+        let classBadge = '';
+        if (courses.includes('知育')) {
+            const rawClass = cls.name.split(' ')[0];
+            const ageClass = rawClass.replace('クラス', '') + '知育';
+            classBadge += `<span style="font-size: 1rem; background:#fef9c3; color:#854d0e; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #fde047;">${ageClass}</span>`;
+        }
+        if (courses.includes('HALLO')) classBadge += `<span style="font-size: 1rem; background:#dbeafe; color:#1e40af; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #93c5fd;">HALLO</span>`;
+        if (courses.includes('受験')) classBadge += `<span style="font-size: 1rem; background:#fee2e2; color:#991b1b; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #fca5a5;">受験</span>`;
+        if (courses.includes('アストルム')) classBadge += `<span style="font-size: 1rem; background:#f3e8ff; color:#6b21a8; padding:0.2rem 0.5rem; border-radius:0.5rem; margin-left:0.5rem; border:1px solid #d8b4fe;">アストルム</span>`;
 
-    // Define all possible courses for dropdown, prioritizing student's enrolled courses
-    const allPossibleCourses = ['知育', '受験', 'HALLO', 'アストルム', 'IQテスト'];
-    const displayedCourses = [...new Set([...courses, ...allPossibleCourses])];
+        // Define all possible courses for dropdown, prioritizing student's enrolled courses
+        const allPossibleCourses = ['知育', '受験', 'HALLO', 'アストルム', 'IQテスト'];
+        const displayedCourses = [...new Set([...courses, ...allPossibleCourses])];
 
-    const schoolInfo = getSchoolInfo(s.school);
+        const schoolInfo = getSchoolInfo(s.school);
 
-    // Build Actions HTML
-    let actionsHTML = '';
-    const shareUrl = `${window.location.origin}${window.location.pathname}#share/${s.id}`;
+        // Build Actions HTML
+        let actionsHTML = '';
+        const shareUrl = `${window.location.origin}${window.location.pathname}#share/${s.id}`;
 
-    if (isReadOnly) {
-        // Read Only Actions (Assume just Copy Link for further sharing?)
-        actionsHTML = `
+        if (isReadOnly) {
+            // Read Only Actions (Assume just Copy Link for further sharing?)
+            actionsHTML = `
             <div class="actions">
                 <button class="btn-secondary" onclick="copyToClipboard('${shareUrl}')"><i class="ri-link"></i> リンクをコピー</button>
             </div>
         `;
-    } else {
-        // Full Actions
-        actionsHTML = `
+        } else {
+            // Full Actions
+            actionsHTML = `
             <div class="actions">
                 <button class="btn-secondary" onclick="copyToClipboard('${shareUrl}')"><i class="ri-link"></i> リンクをコピー</button>
                 <button class="btn-secondary" onclick="window.location.hash='#email/${s.id}'"><i class="ri-mail-send-line"></i> メール作成</button>
@@ -1843,9 +1845,9 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
                 <button class="btn-primary" onclick="window.location.hash='#edit/${s.id}'">編集</button>
             </div>
         `;
-    }
+        }
 
-    contentArea.innerHTML = `
+        contentArea.innerHTML = `
         <div class="detail-header">
             <div class="detail-title">
                 <div style="font-size: 0.9rem; color: #64748b; margin-bottom: -5px;">${s.kana || ''}</div>
@@ -1919,32 +1921,32 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
                         <div>コース</div><div>曜日</div><div>開始</div><div>終了</div><div>教室</div><div>講師</div>
                     </div>
                     ${[0, 1, 2].map(i => {
-        const sch = (s.schedule && s.schedule[i]) ? s.schedule[i] : {};
+            const sch = (s.schedule && s.schedule[i]) ? s.schedule[i] : {};
 
-        // Age Class Logic
-        const ageClass = cls ? cls.name.split(' ')[0] : ''; // e.g., "Sクラス"
+            // Age Class Logic
+            const ageClass = cls ? cls.name.split(' ')[0] : ''; // e.g., "Sクラス"
 
-        // Enhance courses list with specific Age Class if '知育' is present
-        let effectiveCourses = [...displayedCourses];
-        if (effectiveCourses.includes('知育') && ageClass) {
-            // Replace '知育' with specific class or add it
-            effectiveCourses = effectiveCourses.map(c => c === '知育' ? ageClass : c);
-        }
-        // Ensure saved course is in the list
-        if (sch.course && !effectiveCourses.includes(sch.course)) {
-            effectiveCourses.unshift(sch.course);
-        }
+            // Enhance courses list with specific Age Class if '知育' is present
+            let effectiveCourses = [...displayedCourses];
+            if (effectiveCourses.includes('知育') && ageClass) {
+                // Replace '知育' with specific class or add it
+                effectiveCourses = effectiveCourses.map(c => c === '知育' ? ageClass : c);
+            }
+            // Ensure saved course is in the list
+            if (sch.course && !effectiveCourses.includes(sch.course)) {
+                effectiveCourses.unshift(sch.course);
+            }
 
-        // Auto-select logic: ID '知育' is enrolled, default to Age Class
-        let currentCourse = sch.course;
-        if (!currentCourse) {
-            if (courses.includes('知育') && ageClass) currentCourse = ageClass;
-            else if (courses.length === 1) currentCourse = courses[0];
-        }
+            // Auto-select logic: ID '知育' is enrolled, default to Age Class
+            let currentCourse = sch.course;
+            if (!currentCourse) {
+                if (courses.includes('知育') && ageClass) currentCourse = ageClass;
+                else if (courses.length === 1) currentCourse = courses[0];
+            }
 
-        return `
+            return `
                         <div class="schedule-slot-row" style="display:grid; grid-template-columns: 80px 50px 85px 85px 65px 65px; gap:0.5rem; margin-bottom:0.5rem;">
-                            <select class="slot-course" style="padding:0.3rem;" ${isReadOnly ? 'disabled' : ''}>
+                            <select class="slot-course" style="padding:0.3rem;" ${isReadOnly ? 'disabled' : ''} onchange="handleTimeChange(this)">
                                 <option value="">-</option>
                                 ${effectiveCourses.map(c => `<option value="${c}" ${currentCourse === c ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
@@ -1964,7 +1966,7 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
                             </select>
                         </div>
                         `;
-    }).join('')}
+        }).join('')}
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
                     ${!isReadOnly ? `<button class="btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem;" onclick="saveSchedule('${s.id}')">保存</button>` : ''}
@@ -2009,10 +2011,10 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
                         ${s.trialDate ? new Date(s.trialDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未定'}
                          ${s.trialDate ? `
                             <a href="${generateGoogleCalendarUrl(
-        `体験: ${s.name}様`,
-        s.trialDate,
-        `保護者: ${s.parentName}様\n電話: ${s.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${s.handler || '-'}`
-    )}" target="_blank" style="margin-left:0.5rem; color:#db4437; text-decoration:none; font-size:0.85rem; border:1px solid #e2e8f0; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center;">
+            `体験: ${s.name}様`,
+            s.trialDate,
+            `保護者: ${s.parentName}様\n電話: ${s.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${s.handler || '-'}`
+        )}" target="_blank" style="margin-left:0.5rem; color:#db4437; text-decoration:none; font-size:0.85rem; border:1px solid #e2e8f0; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center;">
                                 <i class="ri-calendar-event-line" style="margin-right:2px;"></i> カレンダー登録
                             </a>
                         ` : ''}
@@ -2029,29 +2031,35 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
         </div>
     `;
 
-    // Handle Focus Action
-    if (focusTarget) {
-        setTimeout(() => {
-            let elId = null;
-            if (focusTarget === 'join-memo') elId = 'detail-join-memo';
-            if (focusTarget === 'trial-memo') elId = 'detail-post-trial-memo';
+        // Handle Focus Action
+        if (focusTarget) {
+            setTimeout(() => {
+                let elId = null;
+                if (focusTarget === 'join-memo') elId = 'detail-join-memo';
+                if (focusTarget === 'trial-memo') elId = 'detail-post-trial-memo';
 
-            if (elId) {
-                const el = document.getElementById(elId);
-                if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    el.focus();
+                if (elId) {
+                    const el = document.getElementById(elId);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.focus();
+                    }
                 }
-            }
-        }, 300); // Slight delay for rendering
+            }, 300); // Slight delay for rendering
+        }
+    } catch (e) {
+        console.error(e);
+        alert('詳細表示エラー: ' + e.message);
     }
 }
 
 window.handleTimeChange = function (input) {
     const row = input.parentElement;
     const courseSelect = row.querySelector('.slot-course');
+    const startTimeInput = row.querySelector('.slot-start'); // Always get the start input explicitly
+
     const course = courseSelect.value;
-    const startTime = input.value;
+    const startTime = startTimeInput.value;
 
     if (startTime && (course.includes('知育') || course.includes('HALLO') || course.includes('アストルム') || course.includes('クラス'))) {
         const [h, m] = startTime.split(':').map(Number);
@@ -2065,7 +2073,9 @@ window.handleTimeChange = function (input) {
         const endM = String(startDate.getMinutes()).padStart(2, '0');
 
         const endInput = row.querySelector('.slot-end');
-        if (endInput && !endInput.value) { // Only set if empty? Or always update? Request implies "reflect automatically", usually implies aggressive update.
+        if (endInput) {
+            // Always update end time for these fixed-duration courses to avoid errors
+            // User requested "automtic reflection check again" implying previous check was too strict
             endInput.value = `${endH}:${endM}`;
         }
     }
@@ -2241,7 +2251,7 @@ function renderCalendar() {
                         students: []
                     });
                 }
-                scheduleMap.get(key).students.push(s.name);
+                scheduleMap.get(key).students.push({ name: s.name, id: s.id });
             });
         }
     });
@@ -2296,18 +2306,23 @@ function renderCalendar() {
                 // Color coding by Course (rough logic)
                 let bgColor = '#eff6ff'; // blueish (HALLO)
                 let brdColor = '#2563eb';
-                if (slot.course.includes('知育')) { bgColor = '#fef9c3'; brdColor = '#d97706'; }
+
+                // Chiiku (Yellow) includes specific class codes
+                if (['知育', 'PD', 'D', 'T', 'Q', 'C', 'S'].some(k => slot.course.includes(k))) {
+                    bgColor = '#fef9c3'; brdColor = '#d97706';
+                }
+
                 if (slot.course.includes('受験')) { bgColor = '#fee2e2'; brdColor = '#dc2626'; }
                 if (slot.course.includes('アストルム')) { bgColor = '#f3e8ff'; brdColor = '#7c3aed'; }
 
                 return `
-                    <div class="slot-card" style="top:${startMin}px; height:${height}px; background:${bgColor}; border-left:4px solid ${brdColor};" onclick="alert('${slot.course}\\n${slot.teacher}\\n\\n生徒:\\n${slot.students.join('\\n')}')">
-                         <div class="slot-course" style="color:${brdColor};">${slot.course}</div>
+                    <div class="slot-card" style="top:${startMin}px; height:${height}px; background:${bgColor}; border-left:4px solid ${brdColor};" onclick="alert('${slot.course}\\n${slot.teacher}\\n\\n生徒:\\n${slot.students.map(s => s.name).join('\\n')}')">
+                         <div class="slot-course" style="color:${brdColor};">${slot.course} (${slot.students.length}名)</div>
                          <div class="slot-students">
-                            ${slot.students.map(n => `<div class="slot-student" style="white-space:normal; overflow:visible; line-height:1.1;">${n}</div>`).join('')}
+                            ${slot.students.map(s => `<div class="slot-student" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1; cursor:pointer; color:#1d4ed8;" onclick="console.log('Click student: ${s.id}'); if(window.renderDetail) window.renderDetail('${s.id}'); else alert('Error: renderDetail not found'); event.stopPropagation();" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${s.name}</div>`).join('')}
                          </div>
                          <div class="slot-teacher">
-                            <span style="background:rgba(255,255,255,0.6); padding:0 4px; border-radius:4px;"><i class="ri-user-star-line"></i> ${slot.teacher}</span>
+                            <span style="background:#fff; border:1px solid #ccc; padding:1px 6px; border-radius:4px; font-weight:bold; font-size:0.8rem; box-shadow:0 1px 2px rgba(0,0,0,0.1); color:#333;"><i class="ri-user-star-line"></i> ${slot.teacher}</span>
                          </div>
                     </div>
                 `;
@@ -2356,7 +2371,7 @@ function renderCalendar() {
             .time-labels-body { position: relative; flex: 1; }
             .time-label { position: absolute; width: 100%; text-align: right; padding-right: 5px; font-size: 0.75rem; color: #666; transform: translateY(-50%); border-top: 1px solid #eee; height:0; }
             
-            .day-section { border-right: 2px solid #cbd5e1; flex-shrink: 0; width: 320px; display: flex; flex-direction: column; }
+            .day-section { border-right: 2px solid #cbd5e1; flex-shrink: 0; width: 440px; display: flex; flex-direction: column; }
             .day-header { height: 40px; display:flex; align-items:center; justify-content:center; font-weight: bold; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; position:sticky; top:0; z-index:5; box-sizing: border-box; }
             .room-headers-row { height: 30px; display: flex; border-bottom: 1px solid #e2e8f0; background:#f8fafc; box-sizing: border-box; }
             .rh { flex: 1; display:flex; align-items:center; justify-content:center; font-size: 0.8rem; border-right: 1px solid #eee; }
@@ -2378,9 +2393,9 @@ function renderCalendar() {
                 z-index: 100; overflow:visible; height:auto !important; min-height: fit-content; 
                 box-shadow: 0 8px 16px rgba(0,0,0,0.2); transform: scale(1.02); 
             }
-            .slot-course { font-weight: bold; text-align: center; margin-bottom: 2px; font-size: 0.8rem; }
-            .slot-student { margin-bottom: 2px; }
-            .slot-teacher { font-size: 0.7rem; color:#475569; display:flex; align-items:center; gap:2px; padding-top:2px; }
+            .slot-course { font-weight: bold; text-align: center; margin-bottom: 2px; font-size: 0.7rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .slot-student { margin-bottom: 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .slot-teacher { margin-top:auto; padding-top:4px; display:flex; justify-content:center; }
             .slot-students { padding-right: 2px; line-height:1.2; margin-bottom: 4px; display:flex; flex-direction:column; }
 
             .day-cost { padding: 0.5rem; background: #f0fdf4; font-size: 0.75rem; border-top: 1px solid #bbf7d0; min-height: 50px; }
@@ -2396,9 +2411,75 @@ function renderCalendar() {
             </div>
             ${days.map(d => renderDayColumn(d)).join('')}
         </div>
+
+        <div style="margin-top:2rem; padding:1rem; background:#fff; border:1px solid #ddd; border-radius:0.5rem;">
+            <h3 style="margin-bottom:1rem; font-size:1rem; border-bottom:2px solid #166534; padding-bottom:0.5rem; color:#166534;">週間人件費・コマ数集計</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#f1f5f9; text-align:left;">
+                        <th style="padding:0.5rem; border:1px solid #ddd;">講師名</th>
+                        <th style="padding:0.5rem; border:1px solid #ddd;">総コマ数</th>
+                        <th style="padding:0.5rem; border:1px solid #ddd;">総稼働時間</th>
+                        <th style="padding:0.5rem; border:1px solid #ddd;">総人件費</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(() => {
+            const stats = {};
+            scheduleMap.forEach(slot => {
+                if (slot.teacher && slot.startTime && slot.endTime) {
+                    const wage = getWageRate(slot.teacher, slot.day, slot.course);
+                    if (wage > 0) {
+                        if (!stats[slot.teacher]) stats[slot.teacher] = { count: 0, hours: 0, cost: 0 };
+
+                        const [sh, sm] = slot.startTime.split(':').map(Number);
+                        const [eh, em] = slot.endTime.split(':').map(Number);
+                        const duration = (eh + em / 60) - (sh + sm / 60);
+
+                        stats[slot.teacher].count += 1;
+                        stats[slot.teacher].hours += duration;
+                        stats[slot.teacher].cost += duration * wage;
+                    }
+                }
+            });
+
+            // Calculate Totals
+            let totalCount = 0;
+            let totalHours = 0;
+            let totalCost = 0;
+
+            const rows = Object.entries(stats).map(([t, s]) => {
+                totalCount += s.count;
+                totalHours += s.hours;
+                totalCost += s.cost;
+                return `
+                             <tr>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">${t}</td>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">${s.count}</td>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">${s.hours.toFixed(1)}h</td>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">¥${Math.abs(Math.round(s.cost)).toLocaleString()}</td>
+                             </tr>
+                             `;
+            }).join('');
+
+            const footer = `
+                            <tr style="font-weight:bold; background:#f0fdf4;">
+                                <td style="padding:0.5rem; border:1px solid #ddd;">合計</td>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">${totalCount}</td>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">${totalHours.toFixed(1)}h</td>
+                                <td style="padding:0.5rem; border:1px solid #ddd;">¥${Math.abs(Math.round(totalCost)).toLocaleString()}</td>
+                            </tr>
+                        `;
+
+            return rows + footer;
+        })()}
+                </tbody>
+            </table>
+        </div>
     `;
 }
 
 // --- Global Export ---
 window.init = init;
+window.renderDetail = renderDetail;
 init();

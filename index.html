@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本郷三丁目生徒管理</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Outfit:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Styles -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="style.css?v=20260216-1211">
+</head>
+
+<body>
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="login-logo"><i class="ri-school-fill"></i></div>
+            <h1 class="login-title">Classroom CRM</h1>
+            <p class="login-desc">本郷三丁目 お受験教室データ管理システム</p>
+            <button id="login-btn" class="btn-google">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20"
+                    alt="G">
+                Googleでログイン
+            </button>
+            <p id="login-error" style="color:red; font-size:0.8rem; margin-top:1rem; display:none;"></p>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="ri-school-fill"></i>
+                <div class="logo-text">
+                    <div class="logo-top">本郷三丁目</div>
+                    <div class="logo-bottom highlight">生徒管理</div>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" data-target="dashboard">
+                    <i class="ri-dashboard-line"></i> ダッシュボード
+                </a>
+                <a href="#students" class="nav-item" data-target="students">
+                    <i class="ri-user-smile-line"></i> 生徒管理
+                </a>
+                <a href="#add" class="nav-item" data-target="add">
+                    <i class="ri-user-add-line"></i> 新規登録
+                </a>
+                <a href="#analytics" class="nav-item" data-target="analytics">
+                    <i class="ri-bar-chart-box-line"></i> 分析・推移
+                </a>
+                <a href="#calendar" class="nav-item" data-target="calendar">
+                    <i class="ri-calendar-2-line"></i> スケジュール
+                </a>
+                <a href="#settings" class="nav-item" data-target="settings">
+                    <i class="ri-settings-3-line"></i> 設定
+                </a>
+                <a href="#schools" class="nav-item" data-target="schools">
+                    <i class="ri-book-read-line"></i> 園DB
+                </a>
+            </nav>
+
+            <div class="user-profile">
+                <div class="avatar" id="user-avatar">?</div>
+                <div class="info">
+                    <div class="name" id="user-name">Guest</div>
+                    <div class="role"><a href="#" id="logout-btn"
+                            style="color:#94a3b8; text-decoration:underline;">ログアウト</a></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="page-title">ダッシュボード</h1>
+                <div class="actions">
+                    <div class="search-box">
+                        <i class="ri-search-line"></i>
+                        <input type="text" id="global-search" placeholder="生徒名、保護者名で検索...">
+                    </div>
+                    <button class="btn-icon"><i class="ri-notification-3-line"></i></button>
+                    <button class="btn-primary" onclick="window.location.hash = '#add'">
+                        <i class="ri-add-line"></i> 新規生徒
+                    </button>
+                </div>
+            </header>
+
+            <div id="content-area" class="content-area">
+                <!-- Dynamic Content injected here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="main.js?v=20260216-1211"></script>
+</body>
+
+</html>
