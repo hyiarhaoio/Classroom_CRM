@@ -208,13 +208,26 @@ function init() {
     window.addEventListener('hashchange', handleRoute);
     if (globalSearch) globalSearch.addEventListener('input', handleGlobalSearch);
 
+    // Allowed Emails Whitelist
+    const ALLOWED_EMAILS = [
+        'hyiarhaoio@gmail.com'
+    ];
+
     // Auth Listener
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
+            // Check Whitelist
+            if (!ALLOWED_EMAILS.includes(user.email)) {
+                alert("このメールアドレスはこのシステムへのアクセス権限がありません。");
+                await signOut(auth);
+                return;
+            }
+
             // Logged In
             state.user = user;
             loginOverlay.style.display = 'none';
             appContainer.style.display = 'flex';
+
 
             // Update Profile UI
             if (userAvatar) userAvatar.textContent = user.email[0].toUpperCase();
