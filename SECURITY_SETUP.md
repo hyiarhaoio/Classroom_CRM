@@ -15,8 +15,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
-      // あなたのメールアドレス（hyiarhaoio@gmail.com）のみ読み書きを許可
-      allow read, write: if request.auth != null && request.auth.token.email == "hyiarhaoio@gmail.com";
+      // 許可されたメールアドレスのみ読み書きを許可
+      allow read, write: if request.auth != null && 
+        (request.auth.token.email == "hyiarhaoio@gmail.com" || 
+         request.auth.token.email == "contact@ce-hongo.com");
     }
   }
 }

@@ -210,7 +210,8 @@ function init() {
 
     // Allowed Emails Whitelist
     const ALLOWED_EMAILS = [
-        'hyiarhaoio@gmail.com'
+        'hyiarhaoio@gmail.com',
+        'contact@ce-hongo.com'
     ];
 
     // Auth Listener
