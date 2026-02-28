@@ -1,0 +1,14 @@
+{
+    "name": "classroom-crm",
+    "version": "1.0.0",
+    "description": "本郷三丁目生徒管理 CRM",
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "vite": "^5.0.0"
+    }
+}

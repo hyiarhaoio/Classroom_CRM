@@ -479,6 +479,7 @@ function handleRoute() {
             case 'schools': renderSchoolList(); break;
             case 'school_edit': renderSchoolForm(state.currentId); break;
             case 'calendar': renderCalendar(); break;
+            case 'iq_list': renderIqList(); break; // New IQ List route
             default: renderDashboard();
         }
     } catch (e) {
@@ -886,7 +887,7 @@ function renderStudentList() {
                 </div>
             </div>
             <table id="students-table">
-                <thead><tr><th>問合日</th><th>入会期間</th><th style="min-width: 180px;">生徒名</th><th>コース</th><th>ステータス</th><th>入会後メモ</th><th>連絡先</th><th>担当</th><th></th></tr></thead>
+                <thead><tr><th>問合日</th><th>入会期間</th><th style="min-width: 180px;">生徒名</th><th>生年月日</th><th>コース</th><th>ステータス</th><th>入会後メモ</th><th>連絡先</th><th>担当</th><th></th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -922,7 +923,7 @@ function renderStudentList() {
 window.resetFilters = function () { state.filterClass = null; state.filterStatus = null; renderStudentList(); };
 
 function renderTableRows(list) {
-    if (list.length === 0) return '<tr><td colspan="8" style="text-align: center; padding: 2rem;">データがありません</td></tr>';
+    if (list.length === 0) return '<tr><td colspan="9" style="text-align: center; padding: 2rem;">データがありません</td></tr>';
     return list.map(s => {
         const cls = calculateClass(s.birthday);
         const duration = s.joinedDate ? calculateEnrollmentDuration(s.joinedDate) : '-';
@@ -948,11 +949,30 @@ function renderTableRows(list) {
             </select>
         `;
 
+        // Format birthday for display with Age and Months
+        const birthdayDisplay = s.birthday ? (() => {
+            const parts = s.birthday.split('-');
+            if (parts.length === 3) {
+                const bldate = new Date(s.birthday);
+                const today = new Date();
+                let y = today.getFullYear() - bldate.getFullYear();
+                let m = today.getMonth() - bldate.getMonth();
+                let d = today.getDate() - bldate.getDate();
+                if (d < 0) m--;
+                if (m < 0) { y--; m += 12; }
+                const ageStr = `${y}歳${m}ヶ月`;
+
+                return `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${ageStr}</div>`;
+            }
+            return s.birthday;
+        })() : '-';
+
         return `
         <tr onclick="window.location.hash='#detail/${s.id}'" style="cursor: pointer;">
             <td style="color:var(--text-muted); font-size:0.9rem;">${s.inquiryDate || '-'}</td>
             <td style="color:${s.joinedDate ? 'green' : '#666'}">${duration}</td>
             <td>${s.name}<div style="font-size:0.75rem;">${s.kana || ''}</div></td>
+            <td style="font-size:0.85rem; color:#475569; white-space:nowrap;">${birthdayDisplay}</td>
             <td><div style="display:flex;gap:2px;flex-wrap:wrap;">${badgesHTML}</div></td>
             <td>${statusSelect}</td>
             <td>
@@ -1878,6 +1898,26 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
                         ` : ''}
                         
                         ${duration ? `<div class="info-row"><span class="info-label">在籍期間:</span><span class="info-value" style="color:green; font-weight:bold;">${duration}</span></div>` : ''}
+
+                        <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 0.5rem;">
+                            <div style="font-weight:bold; color:#0369a1; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;"><i class="ri-brain-line"></i> IQテスト</div>
+                            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                                    <input type="checkbox" id="iq-done-check" ${s.iqTestDone ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''} onchange="document.getElementById('iq-date-row').style.display=this.checked?'flex':'none'" style="width:16px; height:16px; cursor:pointer;">
+                                    <span style="font-size:0.9rem;">実施済み</span>
+                                </label>
+                                <div id="iq-date-row" style="display:${s.iqTestDone ? 'flex' : 'none'}; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                                    <span style="font-size:0.85rem; color:#475569;">実施日:</span>
+                                    <input type="date" id="iq-date-input" value="${s.iqTestDate || ''}" ${isReadOnly ? 'disabled' : ''} style="padding:0.25rem 0.5rem; border:1px solid #bae6fd; border-radius:0.4rem; font-size:0.85rem;">
+                                    <span style="font-size:0.85rem; color:#475569; margin-left:0.5rem;">スコア:</span>
+                                    <input type="number" id="iq-score-input" value="${s.iqTestScore || ''}" placeholder="数値" ${isReadOnly ? 'disabled' : ''} style="width:70px; padding:0.25rem 0.5rem; border:1px solid #bae6fd; border-radius:0.4rem; font-size:0.85rem;">
+                                </div>
+                            </div>
+                            ${!isReadOnly ? `
+                            <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
+                                <button class="btn-primary" style="padding:0.3rem 0.8rem; font-size:0.8rem; background:#0369a1; border-color:#0369a1;" onclick="saveIqTest('${s.id}')">保存</button>
+                            </div>` : ''}
+                        </div>
                     </div>
                     <div class="split-right" style="background:#FEF2F2; border:1px solid #FECACA; padding:0.5rem; border-radius:0.5rem;">
                         <div style="font-weight:bold; color:#C53030; margin-bottom:0.5rem;">お子様情報</div>
@@ -2112,10 +2152,104 @@ window.savePostTrialMemo = async function (id) {
     alert('体験後のメモを保存しました。');
 };
 
-window.saveJoinMemo = async function (id) {
-    const memo = document.getElementById('detail-join-memo').value;
-    await updateStudent(id, { joinMemo: memo });
-    alert('入会後メモを保存しました。');
+window.saveJoinMemo = async function saveJoinMemo(id) {
+    const val = document.getElementById('detail-join-memo').value;
+    updateStudent(id, { joinMemo: val });
+    alert('保存しました');
+}
+
+window.saveIqTest = async function (id) {
+    const done = document.getElementById('iq-done-check').checked;
+    const date = document.getElementById('iq-date-input').value;
+    const score = document.getElementById('iq-score-input').value; // Get score
+    // Format date as 〇〇年〇月〇日
+    let formattedDate = date;
+    if (date) {
+        const parts = date.split('-');
+        if (parts.length === 3) formattedDate = `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
+    }
+    await updateStudent(id, {
+        iqTestDone: done,
+        iqTestDate: done ? date : '',
+        iqTestDateFormatted: done ? formattedDate : '',
+        iqTestScore: done ? score : '' // Save score
+    });
+    alert('IQテスト情報を保存しました');
+};
+
+function renderIqList() {
+    document.body.classList.remove('view-dashboard', 'view-students');
+    pageTitle.textContent = 'IQテスト実施済み一覧';
+
+    const iqStudents = state.students
+        .filter(s => s.iqTestDone)
+        .sort((a, b) => {
+            if (!a.iqTestDate && !b.iqTestDate) return 0;
+            if (!a.iqTestDate) return 1;
+            if (!b.iqTestDate) return -1;
+            return new Date(b.iqTestDate) - new Date(a.iqTestDate);
+        });
+
+    contentArea.innerHTML = `
+        <div class="data-table-container">
+            <div style="padding: 1.5rem; display:flex; align-items:center; justify-content:space-between; background:#f0f9ff; border-bottom:1px solid #bae6fd;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <i class="ri-brain-line" style="font-size:1.5rem; color:#0369a1;"></i>
+                    <div>
+                        <div style="font-size:1.1rem; font-weight:bold; color:#0369a1;">IQテスト実施済み生徒</div>
+                        <div style="font-size:0.85rem; color:#0284c7;">計 ${iqStudents.length} 名</div>
+                    </div>
+                </div>
+            </div>
+            <table>
+                <thead><tr>
+                    <th>実施日</th>
+                    <th>次回予定</th>
+                    <th style="min-width:160px;">生徒名</th>
+                    <th>スコア</th>
+                    <th>生年月日</th>
+                    <th>年齢クラス</th>
+                    <th>コース</th>
+                    <th>ステータス</th>
+                    <th>担当</th>
+                </tr></thead>
+                <tbody>
+                ${iqStudents.length === 0 ? '<tr><td colspan="9" style="text-align:center; padding:2rem; color:#94a3b8;">IQテスト実施済みの生徒はいません</td></tr>' : iqStudents.map(s => {
+        const cls = calculateClass(s.birthday);
+        const courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        const birthdayDisplay = s.birthday ? (() => { const p = s.birthday.split('-'); return p.length === 3 ? `${p[0]}年${parseInt(p[1])}月${parseInt(p[2])}日` : s.birthday; })() : '-';
+
+        // Calculate Next Test Date
+        let nextTestDisplay = '-';
+        if (s.iqTestDate) {
+            const d = new Date(s.iqTestDate);
+            d.setFullYear(d.getFullYear() + 1);
+            nextTestDisplay = `<span style="color:#0284c7; font-weight:bold;">${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日</span>`;
+        }
+
+        let badgesHTML = '';
+        if (courses.includes('知育')) badgesHTML += `<span class="badge" style="background:#fef9c3; color:#854d0e;">${cls.name.split(' ')[0].replace('クラス', '')}知育</span>`;
+        if (courses.includes('HALLO')) badgesHTML += `<span class="badge" style="background:#dbeafe; color:#1e40af;">HALLO</span>`;
+        if (courses.includes('受験')) badgesHTML += `<span class="badge" style="background:#fee2e2; color:#991b1b;">受験</span>`;
+        if (courses.includes('アストルム')) badgesHTML += `<span class="badge" style="background:#f3e8ff; color:#6b21a8;">アスト</span>`;
+        const statusStyle = STATUS_DEFINITIONS.find(d => d.value === s.status) || { color: '#333', bg: '#fff' };
+        const statusBadge = `<span style="padding:0.2rem 0.6rem; border-radius:0.25rem; font-size:0.8rem; background:${statusStyle.bg}; color:${statusStyle.color}; border:1px solid ${statusStyle.color}; font-weight:500;">${statusStyle.label}</span>`;
+        return `<tr onclick="window.location.hash='#detail/${s.id}'" style="cursor:pointer;">
+                        <td style="white-space:nowrap; font-weight:500; color:#475569;">${s.iqTestDateFormatted || s.iqTestDate || '-'}</td>
+                        <td style="white-space:nowrap; font-size:0.9rem;">${nextTestDisplay}</td>
+                        <td>${s.name}<div style="font-size:0.75rem; color:#64748b;">${s.kana || ''}</div></td>
+                        <td style="font-weight:bold; color:#0f766e; font-size:1.1rem;">${s.iqTestScore || '-'}</td>
+                        <td style="font-size:0.85rem; color:#475569; white-space:nowrap;">${birthdayDisplay}</td>
+                        <td style="font-size:0.85rem;">${cls.name}</td>
+                        <td><div style="display:flex;gap:2px;flex-wrap:wrap;">${badgesHTML}</div></td>
+                        <td>${statusBadge}</td>
+                        <td>${s.handler || '-'}</td>
+                    </tr>`;
+    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
 };
 
 window.saveChildNotes = async function (id) {
