@@ -2376,13 +2376,20 @@ function renderCalendar() {
     // Map key: "Day_Room_TimeStart" -> { ...details, students: [] }
     const scheduleMap = new Map();
     const teacherDailyCosts = {}; // { Day: { Teacher: Cost } }
+    const dailyStudentSets = {}; // To count unique students per day
 
-    days.forEach(d => teacherDailyCosts[d] = {});
+    days.forEach(d => {
+        teacherDailyCosts[d] = {};
+        dailyStudentSets[d] = new Set();
+    });
 
     state.students.forEach(s => {
         if (s.schedule && Array.isArray(s.schedule)) {
             s.schedule.forEach(sch => {
                 if (!days.includes(sch.day)) return;
+
+                // Count unique students per day
+                dailyStudentSets[sch.day].add(s.id);
 
                 // Create Unique Key for the slot (same day, room, start, end, course, teacher)
                 // Note: We group by these fields so students in the same class appear together.
@@ -2494,7 +2501,7 @@ function renderCalendar() {
 
         return `
             <div class="day-section">
-                <div class="day-header">${day}曜日</div>
+                <div class="day-header">${day}曜日 <span style="font-size:0.8rem; font-weight:normal; margin-left:0.5rem; color:#64748b;">(${dailyStudentSets[day].size}名)</span></div>
                 <div class="room-headers-row">
                     ${rooms.map(r => `<div class="rh">${r.replace('Room', '')}</div>`).join('')}
                 </div>
