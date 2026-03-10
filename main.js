@@ -1355,7 +1355,14 @@ async function renderAnalytics(year = null) {
                 const iDate = new Date(s.inquiryDate);
                 if (iDate >= mStart && iDate <= mEnd) {
                     m.inquiries++;
-                    if (s.status === 'joined') m.contracts++;
+                }
+            }
+
+            // Contracts (Actual join date in this month)
+            if (s.status === 'joined' && s.joinedDate) {
+                const jDate = new Date(s.joinedDate);
+                if (jDate >= mStart && jDate <= mEnd) {
+                    m.contracts++;
                 }
             }
 
@@ -2376,20 +2383,29 @@ function renderCalendar() {
     // Map key: "Day_Room_TimeStart" -> { ...details, students: [] }
     const scheduleMap = new Map();
     const teacherDailyCosts = {}; // { Day: { Teacher: Cost } }
-    const dailyStudentSets = {}; // To count unique students per day
+    const dailyStudentCounts = {}; // To count total students per day
 
     days.forEach(d => {
         teacherDailyCosts[d] = {};
-        dailyStudentSets[d] = new Set();
+        dailyStudentCounts[d] = 0;
+    });
+
+    // To avoid duplication in per-day count if we want "total heads in building" 
+    // BUT user said "Class lesson e.g. 3 people" should be reflected.
+    // Let's count student-slots (the number of students assigned to ALL slots on that day).
+    state.students.forEach(s => {
+        if (s.schedule && Array.isArray(s.schedule)) {
+            s.schedule.forEach(sch => {
+                if (!days.includes(sch.day)) return;
+                dailyStudentCounts[sch.day]++;
+            });
+        }
     });
 
     state.students.forEach(s => {
         if (s.schedule && Array.isArray(s.schedule)) {
             s.schedule.forEach(sch => {
                 if (!days.includes(sch.day)) return;
-
-                // Count unique students per day
-                dailyStudentSets[sch.day].add(s.id);
 
                 // Create Unique Key for the slot (same day, room, start, end, course, teacher)
                 // Note: We group by these fields so students in the same class appear together.
@@ -2501,7 +2517,12 @@ function renderCalendar() {
 
         return `
             <div class="day-section">
-                <div class="day-header">${day}曜日 <span style="font-size:0.8rem; font-weight:normal; margin-left:0.5rem; color:#64748b;">(${dailyStudentSets[day].size}名)</span></div>
+                <div class="day-header">
+                    ${day}曜日 
+                    <div style="font-size:1.1rem; font-weight:bold; margin-left:0.75rem; color:var(--primary); background:rgba(37,99,235,0.1); padding:2px 8px; border-radius:6px; border:1px solid rgba(37,99,235,0.2);">
+                        ${dailyStudentCounts[day]}名
+                    </div>
+                </div>
                 <div class="room-headers-row">
                     ${rooms.map(r => `<div class="rh">${r.replace('Room', '')}</div>`).join('')}
                 </div>
