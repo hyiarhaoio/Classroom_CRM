@@ -567,69 +567,133 @@ window.handleCSVUpload = function (event) {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Reset so same file can be selected again
+    event.target.value = '';
+
     Papa.parse(file, {
         header: false,
         skipEmptyLines: true,
         complete: async function (results) {
             const rows = results.data;
+            if (rows.length === 0) return;
+
             let importedCount = 0;
             let updatedCount = 0;
 
-            if (confirm(`CSVファイルから${rows.length}件のデータを読み込みました。インポートを開始しますか？\n（既存の生徒データは名前で照合して更新されます）`)) {
-                for (let i = 0; i < rows.length; i++) {
+            // Check if it's our new comprehensive backup format
+            const isBackupFormat = rows[0][0] === 'ID' && rows[0][1] === '氏名';
+
+            if (confirm(`CSVファイルから${isBackupFormat ? rows.length - 1 : rows.length}件のデータを読み込みました。インポートを開始しますか？\n（既存の生徒データは${isBackupFormat ? '「ID」または' : ''}「名前」で照合して上書き更新されます）`)) {
+
+                const startIndex = isBackupFormat ? 1 : 0;
+
+                for (let i = startIndex; i < rows.length; i++) {
                     const row = rows[i];
-                    const inquiryDateRaw = row[1];
-                    const nameRaw = row[4];
+                    let studentData = {};
+                    let existingStudent = null;
 
-                    if (!nameRaw || !inquiryDateRaw) continue;
-                    if (nameRaw.includes('名前')) continue;
+                    if (isBackupFormat) {
+                        const id = row[0];
+                        const name = row[1];
+                        if (!name) continue;
 
-                    const nameParts = nameRaw.split(/[\n\r]+/);
-                    const name = nameParts[0].trim();
-                    const kana = nameParts.length > 1 ? nameParts[1].trim() : (row[10] || '');
+                        if (id) {
+                            existingStudent = state.students.find(s => s.id === id);
+                        }
+                        if (!existingStudent) {
+                            existingStudent = state.students.find(s => s.name === name || s.name.replace(/\s+/g, '') === name.replace(/\s+/g, ''));
+                        }
 
-                    const existingStudent = state.students.find(s => s.name === name || s.name.replace(/\s+/g, '') === name.replace(/\s+/g, ''));
+                        const courses = row[15] ? row[15].split(',').map(s => s.trim()).filter(Boolean) : [];
+                        const tags = row[16] ? row[16].split(',').map(s => s.trim()).filter(Boolean) : [];
 
-                    const inquiryDate = inquiryDateRaw.replace(/年/g, '-').replace(/月/g, '-').replace(/日/g, '');
-                    let joinedDate = row[2] ? row[2].replace(/\//g, '-') : null;
-                    if (joinedDate && joinedDate.length <= 7) joinedDate += '-01';
+                        studentData = {
+                            name: name,
+                            kana: row[2] || '',
+                            status: row[3] || 'inquiry_received',
+                            inquiryDate: row[4] || '',
+                            joinedDate: row[5] || '',
+                            withdrawalDate: row[6] || '',
+                            phone: row[7] || '',
+                            email: row[8] || '',
+                            parentName: row[9] || '',
+                            parentWork: row[10] || '',
+                            address: row[11] || '',
+                            gender: row[12] || '',
+                            birthday: row[13] || '',
+                            school: row[14] || '',
+                            courses: courses,
+                            classCategory: courses[0] || '',
+                            tags: tags,
+                            handler: row[17] || '',
+                            instructor: row[18] || '',
+                            interviewer: row[19] || '',
+                            trialDate: row[20] || '',
+                            inquiryReason: row[21] || '',
+                            concerns: row[22] || '',
+                            preferredSchedule: row[23] || '',
+                            partnerAttendance: row[24] || '',
+                            personality: row[25] || '',
+                            lessons: row[26] || '',
+                            siblings: row[27] || '',
+                            memo: row[28] || '',
+                            updatedAt: new Date().toISOString()
+                        };
+                    } else {
+                        // Legacy CRM import format
+                        const inquiryDateRaw = row[1];
+                        const nameRaw = row[4];
 
-                    const gender = row[6] === '男' ? 'boy' : (row[6] === '女' ? 'girl' : '');
-                    const memo = (row[9] || '') + '\n' + (row[8] || '');
-                    const birthday = row[11] ? row[11].split('\n')[0] : '';
-                    const school = row[13];
-                    const parentNameRaw = row[14] ? row[14].split(/[\n\r]+/) : [];
-                    const parentName = parentNameRaw[0];
-                    const parentWork = row[16] ? row[16].replace(/[\n\r]+/g, ' ') : '';
-                    const phone = row[17] ? row[17].replace(/['’]/g, '').replace(/[\n\r]+/g, ', ') : '';
-                    const email = row[18];
-                    const address = (row[19] || '') + (row[20] || '') + (row[21] || '');
-                    const statusRaw = row[5];
-                    const status = STATUS_MAP[statusRaw] || 'inquiry_received';
+                        if (!nameRaw || !inquiryDateRaw) continue;
+                        if (nameRaw.includes('名前')) continue;
 
-                    const courses = [];
-                    const courseRaw = row[3] || '';
-                    if (courseRaw.includes('CE')) courses.push('知育');
-                    if (courseRaw.includes('HA')) courses.push('HALLO');
+                        const nameParts = nameRaw.split(/[\n\r]+/);
+                        const name = nameParts[0].trim();
+                        const kana = nameParts.length > 1 ? nameParts[1].trim() : (row[10] || '');
 
-                    const studentData = {
-                        inquiryDate: inquiryDate,
-                        name: name,
-                        kana: kana,
-                        gender: gender,
-                        courses: courses,
-                        birthday: birthday,
-                        school: school,
-                        parentName: parentName,
-                        parentWork: parentWork,
-                        phone: phone,
-                        email: email,
-                        address: address,
-                        memo: memo,
-                        status: status,
-                        joinedDate: joinedDate,
-                        updatedAt: new Date().toISOString()
-                    };
+                        existingStudent = state.students.find(s => s.name === name || s.name.replace(/\s+/g, '') === name.replace(/\s+/g, ''));
+
+                        const inquiryDate = inquiryDateRaw.replace(/年/g, '-').replace(/月/g, '-').replace(/日/g, '');
+                        let joinedDate = row[2] ? row[2].replace(/\//g, '-') : null;
+                        if (joinedDate && joinedDate.length <= 7) joinedDate += '-01';
+
+                        const gender = row[6] === '男' ? 'boy' : (row[6] === '女' ? 'girl' : '');
+                        const memo = (row[9] || '') + '\n' + (row[8] || '');
+                        const birthday = row[11] ? row[11].split('\n')[0] : '';
+                        const school = row[13];
+                        const parentNameRaw = row[14] ? row[14].split(/[\n\r]+/) : [];
+                        const parentName = parentNameRaw[0];
+                        const parentWork = row[16] ? row[16].replace(/[\n\r]+/g, ' ') : '';
+                        const phone = row[17] ? row[17].replace(/['’]/g, '').replace(/[\n\r]+/g, ', ') : '';
+                        const email = row[18];
+                        const address = (row[19] || '') + (row[20] || '') + (row[21] || '');
+                        const statusRaw = row[5];
+                        const status = STATUS_MAP[statusRaw] || 'inquiry_received';
+
+                        const courses = [];
+                        const courseRaw = row[3] || '';
+                        if (courseRaw.includes('CE')) courses.push('知育');
+                        if (courseRaw.includes('HA')) courses.push('HALLO');
+
+                        studentData = {
+                            inquiryDate: inquiryDate,
+                            name: name,
+                            kana: kana,
+                            gender: gender,
+                            courses: courses,
+                            birthday: birthday,
+                            school: school,
+                            parentName: parentName,
+                            parentWork: parentWork,
+                            phone: phone,
+                            email: email,
+                            address: address,
+                            memo: memo,
+                            status: status,
+                            joinedDate: joinedDate,
+                            updatedAt: new Date().toISOString()
+                        };
+                    }
 
                     Object.keys(studentData).forEach(key => studentData[key] === undefined && delete studentData[key]);
 
@@ -650,10 +714,26 @@ window.handleCSVUpload = function (event) {
 
 window.exportToCSV = function () {
     const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-    const header = ["ID", "氏名", "フリガナ", "ステータス", "問い合わせ日", "入会日", "電話番号", "Email", "保護者名", "住所", "タグ", "メモ"];
+    const header = [
+        "ID", "氏名", "フリガナ", "ステータス", "問い合わせ日", "入会日", "退会日",
+        "電話番号", "Email", "保護者名", "保護者勤務先", "住所",
+        "性別", "生年月日", "在籍園", "コース", "タグ",
+        "担当者", "担当インストラクター", "入会面談者", "体験日時",
+        "問い合わせ経緯", "不安・懸念", "希望曜日時間", "来校時同伴",
+        "性格", "習い事", "兄弟", "メモ"
+    ];
+
+    // Sort students appropriately (e.g. by created/updated time, or just currently displayed list)
+    // We'll export all current state.students
     const rows = state.students.map(s => [
-        s.id, s.name, s.kana, s.status, s.inquiryDate, s.joinedDate, s.phone, s.email, s.parentName, s.address, (s.tags || []).join(','), (s.memo || '').replace(/\n/g, ' ')
+        s.id || '', s.name || '', s.kana || '', s.status || '', s.inquiryDate || '', s.joinedDate || '', s.withdrawalDate || '',
+        s.phone || '', s.email || '', s.parentName || '', s.parentWork || '', s.address || '',
+        s.gender || '', s.birthday || '', s.school || '', (s.courses || []).join(','), (s.tags || []).join(','),
+        s.handler || '', s.instructor || '', s.interviewer || '', s.trialDate || '',
+        s.inquiryReason || '', s.concerns || '', s.preferredSchedule || '', s.partnerAttendance || '',
+        s.personality || '', s.lessons || '', s.siblings || '', s.memo || ''
     ]);
+
     const csvContent = [header, ...rows].map(e => e.map(f => `"${String(f || '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([bom, csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
