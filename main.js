@@ -777,6 +777,39 @@ function renderDashboard() {
     const joined = students.filter(s => s.status === 'joined').length;
     const prospects = students.filter(s => ['considering_longterm', 'declined', 'unresponsive'].includes(s.status)).length;
 
+    // --- Calculate Total Revenue for Dashboard ---
+    const joinedStudents = students.filter(s => s.status === 'joined');
+    let totalRevenue = 0;
+    const coursePrices = {
+        'PDクラス': 13860,
+        'Dクラス': 13860,
+        'Tクラス': 13860,
+        'Qクラス': 17325,
+        'Cクラス': 17325,
+        'Sクラス': 17325,
+        '受験': 27720,
+        'HALLO': 15000,
+        'アストルム': 0
+    };
+
+    joinedStudents.forEach(s => {
+        const courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        if (courses.includes('HALLO')) totalRevenue += coursePrices['HALLO'];
+        if (courses.includes('受験')) totalRevenue += coursePrices['受験'];
+        if (courses.includes('アストルム')) totalRevenue += coursePrices['アストルム'];
+
+        if (courses.includes('知育')) {
+            const cls = calculateClass(s.birthday);
+            if (cls && cls.name) {
+                const rawName = cls.name.split(' ')[0]; // e.g. "Dクラス"
+                if (coursePrices[rawName]) {
+                    totalRevenue += coursePrices[rawName];
+                }
+            }
+        }
+    });
+    const formatCurrency = (amount) => '¥' + amount.toLocaleString();
+
     contentArea.innerHTML = `
         <div class="stats-grid">
             <div class="stat-card clickable" onclick="filterAndGo('prospects_group')" style="border-left: 4px solid var(--primary); cursor: pointer;">
@@ -797,6 +830,12 @@ function renderDashboard() {
                     <i class="ri-thumb-up-line"></i>
                 </div>
                 <div class="stat-info"><h3>入会済み</h3><div class="number">${joined}</div></div>
+            </div>
+            <div class="stat-card clickable" onclick="window.location.hash='#analytics'" style="border-left: 4px solid #10b981; cursor: pointer;">
+                <div class="stat-icon" style="background:#D1FAE5; color:#059669">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-info"><h3>売上目安</h3><div class="number">${formatCurrency(totalRevenue)}</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">(月額算定)</div></div>
             </div>
         </div>
 
@@ -1531,6 +1570,37 @@ async function renderAnalytics(year = null) {
     // Helper to calc percentage
     const calcPct = (num) => currentJoinedCount > 0 ? ((num / currentJoinedCount) * 100).toFixed(1) + '%' : '0%';
 
+    // --- Calculate Revenue Breakdown ---
+    const coursePrices = {
+        'PDクラス': 13860,
+        'Dクラス': 13860,
+        'Tクラス': 13860,
+        'Qクラス': 17325,
+        'Cクラス': 17325,
+        'Sクラス': 17325,
+        '受験': 27720,
+        'HALLO': 15000,
+        'アストルム': 0 // 金額が設定されていない場合は0
+    };
+
+    const revenueBreakdown = {
+        chiiku: {},
+        juken: breakdown.juken * coursePrices['受験'],
+        hallo: breakdown.hallo * coursePrices['HALLO'],
+        astrum: breakdown.astrum * coursePrices['アストルム'],
+        total: 0
+    };
+
+    Object.keys(breakdown.chiiku).forEach(cls => {
+        const count = breakdown.chiiku[cls];
+        const price = coursePrices[cls] || 0;
+        revenueBreakdown.chiiku[cls] = count * price;
+        revenueBreakdown.total += count * price;
+    });
+
+    revenueBreakdown.total += revenueBreakdown.juken + revenueBreakdown.hallo + revenueBreakdown.astrum;
+    const formatCurrency = (amount) => '¥' + amount.toLocaleString();
+
     contentArea.innerHTML = `
         <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
             <select onchange="renderAnalytics(this.value)" style="padding:0.5rem; font-size:1rem; border-radius:0.5rem; border:1px solid var(--border);">
@@ -1568,10 +1638,10 @@ async function renderAnalytics(year = null) {
             <!-- Right Column: Breakdown -->
             <div class="stat-card" style="height: 100%; padding:0; overflow:hidden; display:flex; flex-direction:column;">
                 <div style="padding: 1.25rem 2rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                    <h3 style="margin:0; font-size:1.1rem; color:var(--text-color); font-weight:bold;">コース別内訳 <span style="font-size:0.9rem; font-weight:normal; color:var(--text-muted); margin-left:0.5rem;">(対在籍生徒数比)</span></h3>
+                    <h3 style="margin:0; font-size:1.1rem; color:var(--text-color); font-weight:bold;">コース別内訳・売上 <span style="font-size:0.9rem; font-weight:normal; color:var(--text-muted); margin-left:0.5rem;">(対在籍生徒数比)</span></h3>
                 </div>
                 
-                <div style="padding: 2rem; flex:1; display:flex; gap:3rem;">
+                <div style="padding: 2rem; flex:1; display:flex; gap:2rem;">
                     
                     <!-- Chiiku Block -->
                     <div style="flex:1;">
@@ -1632,6 +1702,51 @@ async function renderAnalytics(year = null) {
                             </div>
                             <div style="font-weight:bold; font-size:1.1rem;">${breakdown.astrum}</div>
                             <div style="color:var(--text-muted); font-size:0.9rem; width:50px; text-align:right;">${calcPct(breakdown.astrum)}</div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div style="width:1px; background:#e2e8f0;"></div>
+
+                    <!-- Revenue Block -->
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1.2rem; padding-bottom:0.6rem; border-bottom:2px solid #10b981;">
+                            <i class="ri-money-dollar-circle-line" style="color:#10b981; font-size:1.2rem;"></i>
+                            <h4 style="margin:0; font-size:1.1rem; font-weight:bold; color:var(--text-color);">売上推計額</h4>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr auto; gap:0.8rem; font-size:1rem; align-items:center;">
+                            ${chiikuOrder.map(clsName => {
+                                const rev = revenueBreakdown.chiiku[clsName] || 0;
+                                return rev > 0 ? `
+                                    <div style="color:var(--text-color);">${clsName}</div>
+                                    <div style="font-weight:bold; text-align:right;">${formatCurrency(rev)}</div>
+                                ` : '';
+                            }).join('')}
+                            
+                            ${Object.keys(revenueBreakdown.chiiku).filter(k => !chiikuOrder.includes(k) && revenueBreakdown.chiiku[k] > 0).map(k => `
+                                <div style="color:var(--text-color);">${k}</div>
+                                <div style="font-weight:bold; text-align:right;">${formatCurrency(revenueBreakdown.chiiku[k])}</div>
+                            `).join('')}
+                            
+                            ${revenueBreakdown.juken > 0 ? `
+                                <div style="color:var(--text-color);">受験</div>
+                                <div style="font-weight:bold; text-align:right;">${formatCurrency(revenueBreakdown.juken)}</div>
+                            ` : ''}
+                            
+                            ${revenueBreakdown.hallo > 0 ? `
+                                <div style="color:var(--text-color);">HALLO</div>
+                                <div style="font-weight:bold; text-align:right;">${formatCurrency(revenueBreakdown.hallo)}</div>
+                            ` : ''}
+
+                            ${revenueBreakdown.astrum > 0 ? `
+                                <div style="color:var(--text-color);">アストルム</div>
+                                <div style="font-weight:bold; text-align:right;">${formatCurrency(revenueBreakdown.astrum)}</div>
+                            ` : ''}
+                            
+                            <div style="grid-column: 1 / -1; height: 1px; background: #e2e8f0; margin: 0.5rem 0;"></div>
+                            
+                            <div style="font-weight:bold; color:var(--text-color);">推計売上合計</div>
+                            <div style="font-weight:bold; color:#10b981; font-size:1.2rem; text-align:right;">${formatCurrency(revenueBreakdown.total)}</div>
                         </div>
                     </div>
 
