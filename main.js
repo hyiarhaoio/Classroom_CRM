@@ -308,6 +308,10 @@ function startDataSync() {
             // Optional: If we want real-time updates on detail/edit but fear overwriting inputs:
             // For now, allow initial load to fix the blank screen.
         }
+    }, (error) => {
+        console.error("Firebase read error (students):", error);
+        const ce = document.getElementById('content-area');
+        if (ce) ce.innerHTML = `<div style="padding:2rem; color:red;">Firebaseデータの読み込みに失敗しました (students):<br>${error.message}</div>`;
     });
     state.listeners.push(studentsUnsub);
 
@@ -737,14 +741,18 @@ function renderAttentionList(list) {
     // Removed 'considering_longterm' from attention list as requested
     const targetStatuses = ['inquiry_received', 'considering_incoming', 'considering_outgoing', 'trial_booked'];
     // Filter out 'declined' explicitly just in case, though not in targetStatuses
-    const attentionList = list.filter(s => targetStatuses.includes(s.status) && s.status !== 'declined').sort((a, b) => new Date(a.inquiryDate) - new Date(b.inquiryDate));
+    const attentionList = list.filter(s => s.status && targetStatuses.includes(s.status) && s.status !== 'declined').sort((a, b) => {
+        const da = a.inquiryDate ? new Date(a.inquiryDate).getTime() || 0 : 0;
+        const db = b.inquiryDate ? new Date(b.inquiryDate).getTime() || 0 : 0;
+        return da - db;
+    });
 
     if (attentionList.length === 0) return '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #aaa;">対応が必要な生徒はいません 🎉</td></tr>';
 
     return attentionList.map(s => {
         const cls = calculateClass(s.birthday);
-        const inquiryTime = new Date(s.inquiryDate);
-        const diffDays = Math.ceil(Math.abs(today - inquiryTime) / (1000 * 60 * 60 * 24));
+        const inquiryTime = s.inquiryDate ? new Date(s.inquiryDate) : today;
+        const diffDays = isNaN(inquiryTime) ? 0 : Math.ceil(Math.abs(today - inquiryTime) / (1000 * 60 * 60 * 24));
         let daysDisplay = diffDays > 30 ? `<span style="font-weight:bold; color:#c2410c;">${diffDays}日 (長期)</span>` : `<span style="font-weight:bold; color:var(--text-color);">${diffDays}日</span>`;
 
         const statusStyle = STATUS_DEFINITIONS.find(d => d.value === s.status) || { color: '#333', bg: '#fff' };
@@ -756,7 +764,9 @@ function renderAttentionList(list) {
         `;
 
         // Courses logic
-        const courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        let courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        if (typeof courses === 'string') courses = [courses];
+        if (!Array.isArray(courses)) courses = [];
         let badgesHTML = '';
         if (courses.includes('知育')) {
             const rawClass = cls.name.split(' ')[0];
@@ -811,8 +821,8 @@ function renderStudentList() {
 
         // 1. Status Filter
         if (state.filterStatus) {
-            if (state.filterStatus === 'considering') displayList = displayList.filter(s => s.status.startsWith('considering'));
-            else if (state.filterStatus === 'other') displayList = displayList.filter(s => ['declined', 'unresponsive'].includes(s.status));
+            if (state.filterStatus === 'considering') displayList = displayList.filter(s => s.status && s.status.startsWith('considering'));
+            else if (state.filterStatus === 'other') displayList = displayList.filter(s => s.status && ['declined', 'unresponsive'].includes(s.status));
             else if (state.filterStatus === 'prospects_group') displayList = displayList.filter(s => ['considering_longterm', 'declined', 'unresponsive'].includes(s.status));
             else displayList = displayList.filter(s => s.status === state.filterStatus);
         }
@@ -941,7 +951,9 @@ function renderTableRows(list) {
     return list.map(s => {
         const cls = calculateClass(s.birthday);
         const duration = s.joinedDate ? calculateEnrollmentDuration(s.joinedDate) : '-';
-        const courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        let courses = s.courses || (s.classCategory ? [s.classCategory] : []);
+        if (typeof courses === 'string') courses = [courses];
+        if (!Array.isArray(courses)) courses = [];
 
         let badgesHTML = '';
         if (courses.includes('知育')) badgesHTML += `<span class="badge" style="background:#fef9c3; color:#854d0e;">${cls.name.split(' ')[0].replace('クラス', '')}知育</span>`;
@@ -951,8 +963,10 @@ function renderTableRows(list) {
         if (courses.includes('IQテスト')) badgesHTML += `<span class="badge" style="background:#ccfbf1; color:#0f766e;">IQ</span>`;
 
         // Tag Badges
-        if (s.tags && s.tags.length > 0) {
-            badgesHTML += s.tags.map(t => `<span class="badge" style="background:#e2e8f0; color:#475569; font-size:0.75rem;"><i class="ri-price-tag-3-line" style="margin-right:2px;"></i>${t}</span>`).join('');
+        let tagsObj = s.tags || [];
+        if (typeof tagsObj === 'string') tagsObj = tagsObj.split(',').map(x => x.trim());
+        if (Array.isArray(tagsObj) && tagsObj.length > 0) {
+            badgesHTML += tagsObj.map(t => `<span class="badge" style="background:#e2e8f0; color:#475569; font-size:0.75rem;"><i class="ri-price-tag-3-line" style="margin-right:2px;"></i>${t}</span>`).join('');
         }
 
         const statusStyle = STATUS_DEFINITIONS.find(d => d.value === s.status) || { color: '#333', bg: '#fff' };
@@ -994,7 +1008,7 @@ function renderTableRows(list) {
                     <i class="ri-file-edit-line"></i> 入会後メモ
                 </button>
             </td>
-            <td>${(s.phone || '-').split(',').slice(0, 2).join('<br>')}</td>
+            <td>${String(s.phone || '-').split(',').slice(0, 2).join('<br>')}</td>
             <td>${s.handler || '-'}</td>
             <td><i class="ri-edit-line" onclick="event.stopPropagation(); window.location.hash='#edit/${s.id}'"></i></td>
         </tr>`;
