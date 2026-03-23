@@ -9,7 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 import {
-    getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, query, orderBy
+    getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, query, orderBy, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import {
     getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut
@@ -31,6 +31,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
+
+// Enable Offline Persistence
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+        console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
+    } else if (err.code == 'unimplemented') {
+        console.warn("The current browser does not support persistence.");
+    }
+});
+
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
@@ -1140,14 +1150,14 @@ function renderForm(id = null) {
     pageTitle.textContent = isEdit ? '生徒情報の編集' : '新規生徒登録';
 
     contentArea.innerHTML = `
-        <form id="student-form" class="form-container">
+        <form id="student-form" class="form-container" novalidate>
              ${!isEdit ? `<div style="margin-bottom:2rem; background:#f0f9ff; padding:1.5rem; border:1px dashed #0284c7; border-radius:0.75rem;"><h3 style="font-size:1rem; color:#0369a1;"><i class="ri-magic-line"></i> お問い合わせメールから自動入力</h3><textarea id="magic-paste" rows="3" placeholder="ここにメール本文をペースト..." style="width:100%; border:1px solid #cbd5e1;"></textarea></div>` : ''}
 
             <div class="section-divider">受付情報</div>
             <div class="form-grid">
                  <div class="form-group"><label>問合わせ日</label><input type="date" name="inquiryDate" id="field-inquiryDate" value="${data.inquiryDate || new Date().toISOString().split('T')[0]}" required></div>
                  <div class="form-group"><label>担当者</label>
-                    <select name="handler" id="field-handler">
+                    <select name="handler" id="field-handler" required>
                         <option value="">選択</option>
                         <option value="平井" ${data.handler === '平井' ? 'selected' : ''}>平井</option>
                         <option value="末永" ${data.handler === '末永' ? 'selected' : ''}>末永</option>
@@ -1158,8 +1168,14 @@ function renderForm(id = null) {
             <div class="section-divider">生徒情報</div>
             <div class="form-grid">
                 <div class="form-group"><label>氏名</label><input type="text" name="name" id="field-name" value="${data.name || ''}" required></div>
-                <div class="form-group"><label>フリガナ</label><input type="text" name="kana" id="field-kana" value="${data.kana || ''}"></div>
-                <div class="form-group"><label>性別</label><select name="gender" id="field-gender"><option value="boy" ${data.gender === 'boy' ? 'selected' : ''}>男子</option><option value="girl" ${data.gender === 'girl' ? 'selected' : ''}>女子</option></select></div>
+                <div class="form-group"><label>フリガナ</label><input type="text" name="kana" id="field-kana" value="${data.kana || ''}" required></div>
+                <div class="form-group"><label>性別</label>
+                    <select name="gender" id="field-gender" required>
+                        <option value="">選択</option>
+                        <option value="boy" ${data.gender === 'boy' ? 'selected' : ''}>男子</option>
+                        <option value="girl" ${data.gender === 'girl' ? 'selected' : ''}>女子</option>
+                    </select>
+                </div>
                 <div class="form-group"><label>コース</label>
                     <div class="checkbox-group">
                         <label class="checkbox-label"><input type="checkbox" name="course_chiiku" ${data.courses?.includes('知育') || data.classCategory === '知育' ? 'checked' : ''}> 知育</label>
@@ -1169,7 +1185,7 @@ function renderForm(id = null) {
                         <label class="checkbox-label"><input type="checkbox" name="course_iq" ${data.courses?.includes('IQテスト') ? 'checked' : ''}> IQテスト</label>
                     </div>
                 </div>
-                <div class="form-group"><label>生年月日</label><input type="date" name="birthday" id="field-birthday" value="${data.birthday || ''}"></div>
+                <div class="form-group"><label>生年月日</label><input type="date" name="birthday" id="field-birthday" value="${data.birthday || ''}" required></div>
                 <div class="form-group"><label>在籍園</label><input type="text" name="school" id="field-school" value="${data.school || ''}"></div>
             </div>
 
@@ -1297,7 +1313,16 @@ function renderForm(id = null) {
             return;
         }
 
-        if (!form.checkValidity()) { form.reportValidity(); return; }
+        if (!form.checkValidity()) {
+            const firstInvalid = form.querySelector(':invalid');
+            if (firstInvalid) {
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    firstInvalid.reportValidity();
+                }, 100);
+            }
+            return;
+        }
 
         const formData = new FormData(form);
         const courses = [];
@@ -1307,7 +1332,10 @@ function renderForm(id = null) {
         if (formData.get('course_astrum')) courses.push('アストルム');
         if (formData.get('course_iq')) courses.push('IQテスト');
 
-        if (formData.get('course_iq')) courses.push('IQテスト');
+        if (courses.length === 0) {
+            alert('コースを少なくとも1つ選択してください。');
+            return;
+        }
 
         const submitData = Object.fromEntries(formData.entries());
 
@@ -1321,23 +1349,28 @@ function renderForm(id = null) {
         submitData.courses = courses;
         submitData.classCategory = courses[0] || '';
 
-        let studentId = id;
-        if (isEdit) {
-            await updateStudent(id, submitData);
-        } else {
-            studentId = await addStudent(submitData);
-        }
-
-        if (actionType === 'trial_email') {
-            state.pendingEmailTemplate = 'trial_confirmation';
-            window.location.hash = `#email/${studentId}`;
-        } else {
-            // Updated: Redirect to Dashboard after Edit
+        try {
+            let studentId = id;
             if (isEdit) {
-                window.location.hash = '#dashboard';
+                await updateStudent(id, submitData);
             } else {
-                window.location.hash = '#students';
+                studentId = await addStudent(submitData);
             }
+
+            if (actionType === 'trial_email') {
+                state.pendingEmailTemplate = 'trial_confirmation';
+                window.location.hash = `#email/${studentId}`;
+            } else {
+                // Updated: Redirect to Dashboard after Edit
+                if (isEdit) {
+                    window.location.hash = '#dashboard';
+                } else {
+                    window.location.hash = '#students';
+                }
+            }
+        } catch (e) {
+            console.error("Save failed:", e);
+            alert("保存に失敗しました。ネットワーク接続を確認してください。\nエラー: " + e.message);
         }
     };
 
@@ -2378,14 +2411,24 @@ window.saveSchedule = async function (id) {
 
 window.savePostTrialMemo = async function (id) {
     const memo = document.getElementById('detail-post-trial-memo').value;
-    await updateStudent(id, { postTrialMemo: memo });
-    alert('体験後のメモを保存しました。');
+    try {
+        await updateStudent(id, { postTrialMemo: memo });
+        alert('体験後のメモを保存しました。');
+    } catch (e) {
+        console.error(e);
+        alert('保存に失敗しました: ' + e.message);
+    }
 };
 
 window.saveJoinMemo = async function saveJoinMemo(id) {
     const val = document.getElementById('detail-join-memo').value;
-    updateStudent(id, { joinMemo: val });
-    alert('保存しました');
+    try {
+        await updateStudent(id, { joinMemo: val });
+        alert('保存しました');
+    } catch (e) {
+        console.error(e);
+        alert('保存に失敗しました: ' + e.message);
+    }
 }
 
 window.saveIqTest = async function (id) {
@@ -2398,13 +2441,18 @@ window.saveIqTest = async function (id) {
         const parts = date.split('-');
         if (parts.length === 3) formattedDate = `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
     }
-    await updateStudent(id, {
-        iqTestDone: done,
-        iqTestDate: done ? date : '',
-        iqTestDateFormatted: done ? formattedDate : '',
-        iqTestScore: done ? score : '' // Save score
-    });
-    alert('IQテスト情報を保存しました');
+    try {
+        await updateStudent(id, {
+            iqTestDone: done,
+            iqTestDate: done ? date : '',
+            iqTestDateFormatted: done ? formattedDate : '',
+            iqTestScore: done ? score : '' // Save score
+        });
+        alert('IQテスト情報を保存しました');
+    } catch (e) {
+        console.error(e);
+        alert('保存に失敗しました: ' + e.message);
+    }
 };
 
 function renderIqList() {
@@ -2484,14 +2532,24 @@ function renderIqList() {
 
 window.saveChildNotes = async function (id) {
     const memo = document.getElementById('detail-child-notes').value;
-    await updateStudent(id, { childNotes: memo });
-    alert('お子様情報を保存しました。');
+    try {
+        await updateStudent(id, { childNotes: memo });
+        alert('お子様情報を保存しました。');
+    } catch (e) {
+        console.error(e);
+        alert('保存に失敗しました: ' + e.message);
+    }
 };
 
 window.saveParentNotes = async function (id) {
     const memo = document.getElementById('detail-parent-notes').value;
-    await updateStudent(id, { parentNotes: memo });
-    alert('保護者特記事項を保存しました。');
+    try {
+        await updateStudent(id, { parentNotes: memo });
+        alert('保護者特記事項を保存しました。');
+    } catch (e) {
+        console.error(e);
+        alert('保存に失敗しました: ' + e.message);
+    }
 };
 
 
