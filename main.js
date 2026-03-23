@@ -520,6 +520,11 @@ function handleRoute() {
             case 'iq_list': renderIqList(); break; // New IQ List route
             default: renderDashboard();
         }
+
+        // 画面遷移時にスクロール位置を一番上に戻す
+        if (contentArea) contentArea.scrollTop = 0;
+        window.scrollTo(0, 0);
+
     } catch (e) {
         console.error("Render Error:", e);
         contentArea.innerHTML = `<div style="padding:2rem; color:red;">エラーが発生しました。<br>${e.message}</div>`;
