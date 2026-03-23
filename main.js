@@ -1375,6 +1375,18 @@ function renderForm(id = null) {
                 studentId = await addStudent(submitData);
             }
 
+            // Googleカレンダー登録連携 (連携: 体験日時が新たに入力・変更された場合のみ)
+            const oldTrialDate = data.trialDate || '';
+            const newTrialDate = submitData.trialDate || '';
+            if (newTrialDate && newTrialDate !== oldTrialDate) {
+                const calUrl = generateGoogleCalendarUrl(
+                    `体験: ${submitData.name}様`,
+                    newTrialDate,
+                    `保護者: ${submitData.parentName}様\n電話: ${submitData.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${submitData.handler || '-'}`
+                );
+                window.open(calUrl, '_blank');
+            }
+
             if (actionType === 'trial_email') {
                 state.pendingEmailTemplate = 'trial_confirmation';
                 window.location.hash = `#email/${studentId}`;
