@@ -1326,6 +1326,7 @@ function renderForm(id = null) {
         if (!form.checkValidity()) {
             const firstInvalid = form.querySelector(':invalid');
             if (firstInvalid) {
+                firstInvalid.focus();
                 firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 setTimeout(() => {
                     firstInvalid.reportValidity();
