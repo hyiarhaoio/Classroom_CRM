@@ -440,8 +440,13 @@ async function updateStudent(id, updatedData) {
 
 async function deleteStudent(id) {
     if (confirm('本当に削除しますか？\nこの操作は取り消せません。')) {
-        await deleteDoc(doc(db, "students", id));
-        window.location.hash = '#students';
+        try {
+            await deleteDoc(doc(db, "students", id));
+            window.location.hash = '#students';
+        } catch (e) {
+            console.error("Delete failed:", e);
+            alert("削除に失敗しました: " + e.message);
+        }
     }
 }
 
@@ -463,8 +468,13 @@ async function updateSchool(id, data) {
 
 async function deleteSchool(id) {
     if (confirm('この園情報を削除しますか？')) {
-        await deleteDoc(doc(db, "schools", id));
-        renderSchoolList(); // will auto-update via listener, but good to trigger
+        try {
+            await deleteDoc(doc(db, "schools", id));
+            renderSchoolList(); // will auto-update via listener, but good to trigger
+        } catch (e) {
+            console.error("Delete failed:", e);
+            alert("削除に失敗しました: " + e.message);
+        }
     }
 }
 
