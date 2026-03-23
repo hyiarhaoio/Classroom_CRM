@@ -521,9 +521,11 @@ function handleRoute() {
             default: renderDashboard();
         }
 
-        // 画面遷移時にスクロール位置を一番上に戻す
-        if (contentArea) contentArea.scrollTop = 0;
-        window.scrollTo(0, 0);
+        // 画面遷移時にスクロール位置を一番上に戻す (ブラウザの自動スクロール復元を上書きするため少し遅延させる)
+        setTimeout(() => {
+            if (contentArea) contentArea.scrollTop = 0;
+            window.scrollTo(0, 0);
+        }, 50);
 
     } catch (e) {
         console.error("Render Error:", e);
