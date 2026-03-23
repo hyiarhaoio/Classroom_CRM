@@ -1382,7 +1382,7 @@ function renderForm(id = null) {
                 const calUrl = generateGoogleCalendarUrl(
                     `体験: ${submitData.name}様`,
                     newTrialDate,
-                    `保護者: ${submitData.parentName}様\n電話: ${submitData.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${submitData.handler || '-'}`
+                    `保護者: ${submitData.parentName}様\n電話: ${submitData.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${submitData.handler || '-'}\n\n【ヒアリング情報】\n性格: ${submitData.personality || '-'}\n習い事: ${submitData.lessons || '-'}\n兄弟: ${submitData.siblings || '-'}\nタグ: ${(submitData.tags || []).join(', ') || '-'}\n経緯: ${submitData.inquiryReason || '-'}\n懸念: ${submitData.concerns || '-'}\n希望枠: ${submitData.preferredSchedule || '-'}\n同伴: ${submitData.partnerAttendance || '-'}\n\n【詳細メモ】\n${submitData.memo || '-'}`
                 );
                 window.open(calUrl, '_blank');
             }
@@ -2346,7 +2346,7 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
                             <a href="${generateGoogleCalendarUrl(
             `体験: ${s.name}様`,
             s.trialDate,
-            `保護者: ${s.parentName}様\n電話: ${s.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${s.handler || '-'}`
+            `保護者: ${s.parentName}様\n電話: ${s.phone || '-'}\nコース: ${courses.join(', ')}\n担当: ${s.handler || '-'}\n\n【ヒアリング情報】\n性格: ${s.personality || '-'}\n習い事: ${s.lessons || '-'}\n兄弟: ${s.siblings || '-'}\nタグ: ${(s.tags || []).join(', ') || '-'}\n経緯: ${s.inquiryReason || '-'}\n懸念: ${s.concerns || '-'}\n希望枠: ${s.preferredSchedule || '-'}\n同伴: ${s.partnerAttendance || '-'}\n\n【詳細メモ】\n${s.memo || '-'}`
         )}" target="_blank" style="margin-left:0.5rem; color:#db4437; text-decoration:none; font-size:0.85rem; border:1px solid #e2e8f0; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center;">
                                 <i class="ri-calendar-event-line" style="margin-right:2px;"></i> カレンダー登録
                             </a>
