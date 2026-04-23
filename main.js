@@ -118,7 +118,9 @@ const TEACHER_RATES = {
     '川井': 1200,
     '清水': 1200,
     '敦子': 1200,
-    '落合': 1200
+    '落合': 1200,
+    '加藤': 1200,
+    '島田': 1200
 };
 
 // Wage Calculation Logic
@@ -873,7 +875,7 @@ function renderDashboard() {
             <table>
                 <thead>
                     <tr>
-                        <th>生徒名</th><th>コース</th><th>ステータス</th><th>問い合わせ経過日数</th><th>連絡先</th><th>メール連絡</th><th>担当者</th>
+                        <th>生徒名</th><th>コース</th><th>ステータス</th><th>問い合わせ経過日数</th><th>連絡先</th><th>メール連絡</th><th>面談担当</th>
                     </tr>
                 </thead>
                 <tbody>${renderAttentionList(state.students)}</tbody>
@@ -937,7 +939,7 @@ function renderAttentionList(list) {
             </td>
             <td><div style="font-family:monospace; font-size:0.9rem;">${s.phone || '-'}</div></td>
             <td><button class="btn-primary" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="event.stopPropagation(); window.location.hash='#email/${s.id}'">メール</button></td>
-            <td>${s.handler || '-'}</td>
+            <td>${s.interviewer || '-'}</td>
         </tr>`;
     }).join('');
 }
@@ -1057,7 +1059,7 @@ function renderStudentList() {
                 </div>
             </div>
             <table id="students-table">
-                <thead><tr><th>問合日</th><th>入会期間</th><th style="min-width: 180px;">生徒名</th><th>生年月日</th><th>コース</th><th>ステータス</th><th>入会後メモ</th><th>連絡先</th><th>担当</th><th></th></tr></thead>
+                <thead><tr><th>問合日</th><th>入会期間</th><th style="min-width: 180px;">生徒名</th><th>生年月日</th><th>コース</th><th>ステータス</th><th>入会後メモ</th><th>連絡先</th><th>面談担当</th><th></th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -1155,7 +1157,7 @@ function renderTableRows(list) {
                 </button>
             </td>
             <td>${String(s.phone || '-').split(',').slice(0, 2).join('<br>')}</td>
-            <td>${s.handler || '-'}</td>
+            <td>${s.interviewer || '-'}</td>
             <td><i class="ri-edit-line" onclick="event.stopPropagation(); window.location.hash='#edit/${s.id}'"></i></td>
         </tr>`;
     }).join('');
@@ -1173,7 +1175,7 @@ function renderForm(id = null) {
             <div class="section-divider">受付情報</div>
             <div class="form-grid">
                  <div class="form-group"><label>問合わせ日</label><input type="date" name="inquiryDate" id="field-inquiryDate" value="${data.inquiryDate || new Date().toISOString().split('T')[0]}" required></div>
-                 <div class="form-group"><label>担当者</label>
+                  <div class="form-group"><label>問合せ担当</label>
                     <select name="handler" id="field-handler" required>
                         <option value="">選択</option>
                         <option value="平井" ${data.handler === '平井' ? 'selected' : ''}>平井</option>
@@ -1251,7 +1253,7 @@ function renderForm(id = null) {
                  <div class="form-group"><label>担当インストラクター</label>
                     <select name="instructor">
                         <option value="">選択</option>
-                        ${['江塚', '鈴木', '川井', '清水', '敦子', '落合', '平井', '末永'].map(n => `<option value="${n}" ${data.instructor === n ? 'selected' : ''}>${n}</option>`).join('')}
+                        ${['江塚', '鈴木', '川井', '清水', '敦子', '落合', '平井', '末永', '加藤', '島田'].map(n => `<option value="${n}" ${data.instructor === n ? 'selected' : ''}>${n}</option>`).join('')}
                     </select>
                  </div>
                  <div class="form-group"><label>入会面談者</label>
