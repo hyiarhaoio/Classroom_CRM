@@ -1180,6 +1180,8 @@ function renderForm(id = null) {
                         <option value="">選択</option>
                         <option value="平井" ${data.handler === '平井' ? 'selected' : ''}>平井</option>
                         <option value="末永" ${data.handler === '末永' ? 'selected' : ''}>末永</option>
+                        <option value="加藤" ${data.handler === '加藤' ? 'selected' : ''}>加藤</option>
+                        <option value="島田" ${data.handler === '島田' ? 'selected' : ''}>島田</option>
                     </select>
                 </div>
             </div>
@@ -1259,7 +1261,7 @@ function renderForm(id = null) {
                  <div class="form-group"><label>入会面談者</label>
                     <select name="interviewer">
                         <option value="">選択</option>
-                        ${['平井', '末永'].map(n => `<option value="${n}" ${data.interviewer === n ? 'selected' : ''}>${n}</option>`).join('')}
+                        ${['平井', '末永', '加藤', '島田'].map(n => `<option value="${n}" ${data.interviewer === n ? 'selected' : ''}>${n}</option>`).join('')}
                     </select>
                  </div>
 
