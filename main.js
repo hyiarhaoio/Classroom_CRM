@@ -136,7 +136,7 @@ const getWageRate = (teacher, day, course) => {
     const isExam = course && course.includes('受験');
 
     if (isSaturday) {
-        return isExam ? 1400 : 1350;
+        return isExam ? 1350 : 1300;
     } else {
         return isExam ? 1300 : 1250;
     }
@@ -523,6 +523,7 @@ function handleRoute() {
             case 'schools': renderSchoolList(); break;
             case 'school_edit': renderSchoolForm(state.currentId); break;
             case 'calendar': renderCalendar(); break;
+            case 'instructor_analytics': renderInstructorAnalytics(); break;
             case 'iq_list': renderIqList(); break; // New IQ List route
             default: renderDashboard();
         }
@@ -1907,6 +1908,233 @@ async function renderAnalytics(year = null) {
 
     // Global function for selector
     window.renderAnalytics = renderAnalytics;
+}
+
+function renderInstructorAnalytics() {
+    pageTitle.textContent = 'インストラクター分析';
+
+    const allStudents = state.students;
+
+    // --- Calculate Instructor Stats ---
+    const activeStudents = allStudents.filter(s => ['joined', 'suspended'].includes(s.status));
+    const uniqueClasses = new Map();
+
+    activeStudents.forEach(s => {
+        if (s.schedule && Array.isArray(s.schedule)) {
+            s.schedule.forEach(sch => {
+                if (!sch.day || !sch.startTime || !sch.endTime || !sch.teacher) return;
+                const key = `${sch.day}_${sch.room || 'Room1'}_${sch.startTime}_${sch.endTime}_${sch.course || '知育'}_${sch.teacher}`;
+                if (!uniqueClasses.has(key)) {
+                    uniqueClasses.set(key, {
+                        day: sch.day,
+                        room: sch.room || '-',
+                        startTime: sch.startTime,
+                        endTime: sch.endTime,
+                        course: sch.course || '未定',
+                        teacher: sch.teacher,
+                        students: []
+                    });
+                }
+                if (!uniqueClasses.get(key).students.includes(s.name)) {
+                    uniqueClasses.get(key).students.push(s.name);
+                }
+            });
+        }
+    });
+
+    const teacherStats = {};
+    Object.keys(TEACHER_RATES).forEach(t => {
+        teacherStats[t] = {
+            classes: [],
+            totalHours: 0,
+            totalWage: 0,
+            totalSlots: 0,
+            courseCounts: {}
+        };
+    });
+
+    uniqueClasses.forEach(cls => {
+        const t = cls.teacher;
+        if (!teacherStats[t]) {
+            teacherStats[t] = {
+                classes: [],
+                totalHours: 0,
+                totalWage: 0,
+                totalSlots: 0,
+                courseCounts: {}
+            };
+        }
+
+        const [sh, sm] = cls.startTime.split(':').map(Number);
+        const [eh, em] = cls.endTime.split(':').map(Number);
+        const duration = (eh + em / 60) - (sh + sm / 60);
+
+        const rate = getWageRate(t, cls.day, cls.course);
+        const wage = duration * rate;
+
+        // クラスのカテゴリ分け（知育、受験、HALLO、アストルム、その他）
+        let category = 'その他';
+        if (['PD', 'D', 'T', 'Q', 'C', 'S'].some(k => cls.course.includes(k)) || cls.course.includes('知育')) {
+            category = '知育';
+        } else if (cls.course.includes('受験')) {
+            category = '受験';
+        } else if (cls.course.includes('HALLO')) {
+            category = 'HALLO';
+        } else if (cls.course.includes('アストルム')) {
+            category = 'アストルム';
+        } else {
+            category = cls.course;
+        }
+
+        teacherStats[t].courseCounts[category] = (teacherStats[t].courseCounts[category] || 0) + 1;
+
+        teacherStats[t].classes.push({
+            ...cls,
+            duration,
+            rate,
+            wage
+        });
+        teacherStats[t].totalHours += duration;
+        teacherStats[t].totalWage += wage;
+        teacherStats[t].totalSlots += 1;
+    });
+
+    // Calculate Totals for Summary
+    let totalAllSlots = 0;
+    let totalAllWeeklyWage = 0;
+    Object.values(teacherStats).forEach(s => {
+        totalAllSlots += s.totalSlots;
+        totalAllWeeklyWage += s.totalWage;
+    });
+
+    contentArea.innerHTML = `
+        <div class="stats-grid" style="grid-template-columns: 1fr;">
+            <div class="stat-card" style="display:block; padding: 2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:2px solid var(--primary); padding-bottom:0.5rem;">
+                    <h3 style="margin:0; font-size:1.2rem; color:var(--text-color); display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ri-user-settings-line" style="color:var(--primary);"></i>
+                        インストラクター別 担当クラス・想定報酬（固定スケジュール）
+                    </h3>
+                    <span style="font-size:0.85rem; color:var(--text-muted);">※在籍中・休会中生徒の固定スケジュールから集計</span>
+                </div>
+
+                <!-- 講師全体サマリー -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-bottom:2rem;">
+                    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; padding:1rem; border-radius:0.75rem; display:flex; align-items:center; justify-content:space-between; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+                        <div>
+                            <div style="font-size:0.85rem; color:#1e40af; font-weight:bold;">全体総コマ数</div>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#1d4ed8; margin-top:0.25rem;">${totalAllSlots} <span style="font-size:1rem; font-weight:normal;">コマ</span></div>
+                        </div>
+                        <i class="ri-calendar-todo-line" style="font-size:2.5rem; color:#3b82f6; opacity:0.3;"></i>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; padding:1rem; border-radius:0.75rem; display:flex; align-items:center; justify-content:space-between; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+                        <div>
+                            <div style="font-size:0.85rem; color:#166534; font-weight:bold;">週間想定報酬総額</div>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#15803d; margin-top:0.25rem;">¥${Math.round(totalAllWeeklyWage).toLocaleString()}</div>
+                        </div>
+                        <i class="ri-money-yen-box-line" style="font-size:2.5rem; color:#22c55e; opacity:0.3;"></i>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 1px solid #e9d5ff; padding:1rem; border-radius:0.75rem; display:flex; align-items:center; justify-content:space-between; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+                        <div>
+                            <div style="font-size:0.85rem; color:#6b21a8; font-weight:bold;">月間想定報酬総額 (4週換算)</div>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#7e22ce; margin-top:0.25rem;">¥${Math.round(totalAllWeeklyWage * 4).toLocaleString()}</div>
+                        </div>
+                        <i class="ri-bank-card-line" style="font-size:2.5rem; color:#a855f7; opacity:0.3;"></i>
+                    </div>
+                </div>
+
+                <!-- 講師別詳細リスト -->
+                <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                    ${Object.entries(teacherStats).map(([teacherName, stats]) => {
+                        const hasClasses = stats.classes.length > 0;
+                        const isOwner = ['平井', '末永'].includes(teacherName);
+                        
+                        // コース内訳表示文字列の生成
+                        const courseDetails = Object.entries(stats.courseCounts || {})
+                            .map(([cat, count]) => `${cat}: ${count}コマ`)
+                            .join(', ');
+                        const courseDetailsText = courseDetails ? ` (${courseDetails})` : '';
+
+                        return `
+                        <div style="border: 1px solid #e2e8f0; border-radius:0.75rem; overflow:hidden; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <!-- カードヘッダー -->
+                            <div style="background:#f8fafc; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-wrap:wrap; gap:1rem;">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <span style="font-size:1.1rem; font-weight:bold; color:#1e293b; background:#e2e8f0; padding:0.25rem 0.75rem; border-radius:9999px;">
+                                        ${teacherName}
+                                    </span>
+                                    <span style="font-size:0.9rem; color:#64748b;">
+                                        担当クラス数: <b style="color:#1e3a8a; font-size:1.1rem;">${stats.totalSlots}</b> コマ<span style="color:#2563eb; font-weight:500;">${courseDetailsText}</span> (${stats.totalHours.toFixed(1)}時間)
+                                    </span>
+                                </div>
+                                <div style="display:flex; gap:1.5rem; align-items:center;">
+                                    <div style="text-align:right;">
+                                        <span style="font-size:0.8rem; color:#64748b; display:block;">週間想定報酬</span>
+                                        <span style="font-size:1.15rem; font-weight:bold; color:${isOwner ? '#64748b' : '#16a34a'};">
+                                            ${isOwner ? '対象外' : `¥${Math.round(stats.totalWage).toLocaleString()}`}
+                                        </span>
+                                    </div>
+                                    <div style="width:1px; height:24px; background:#cbd5e1;"></div>
+                                    <div style="text-align:right;">
+                                        <span style="font-size:0.8rem; color:#64748b; display:block;">月間想定報酬 (4週)</span>
+                                        <span style="font-size:1.15rem; font-weight:bold; color:${isOwner ? '#64748b' : '#2563eb'};">
+                                            ${isOwner ? '対象外' : `¥${Math.round(stats.totalWage * 4).toLocaleString()}`}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 担当クラス一覧 -->
+                            <div style="padding:1rem; overflow-x:auto;">
+                                ${hasClasses ? `
+                                <table style="width:100%; border-collapse:collapse; font-size:0.85rem; text-align:left;">
+                                    <thead>
+                                        <tr style="border-bottom:2px solid #e2e8f0; color:#475569; font-weight:bold; background:#f8fafc;">
+                                            <th style="padding:0.75rem; border-radius:4px 0 0 0;">曜日</th>
+                                            <th style="padding:0.75rem;">時間</th>
+                                            <th style="padding:0.75rem;">コース</th>
+                                            <th style="padding:0.75rem;">教室</th>
+                                            <th style="padding:0.75rem;">生徒数</th>
+                                            <th style="padding:0.75rem;">生徒名</th>
+                                            <th style="padding:0.75rem; text-align:right; border-radius:0 4px 0 0;">想定報酬 (時間単価)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${stats.classes.map(c => {
+                                            const isExam = c.course.includes('受験');
+                                            const isSat = c.day === '土';
+                                            return `
+                                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                                <td style="padding:0.75rem;"><span style="background:${isSat ? '#dbeafe' : '#fef3c7'}; color:${isSat ? '#1e40af' : '#d97706'}; font-weight:bold; padding:2px 6px; border-radius:4px;">${c.day}曜日</span></td>
+                                                <td style="padding:0.75rem; font-weight:500;">${c.startTime}〜${c.endTime} (${c.duration.toFixed(1)}h)</td>
+                                                <td style="padding:0.75rem;"><span style="font-weight:600; color:${isExam ? '#dc2626' : '#1e293b'};">${c.course}</span></td>
+                                                <td style="padding:0.75rem; color:#475569;">${c.room}</td>
+                                                <td style="padding:0.75rem; font-weight:bold; color:#2563eb;">${c.students.length}名</td>
+                                                <td style="padding:0.75rem; color:#64748b; font-size:0.8rem; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.students.join(', ')}">${c.students.join(', ')}</td>
+                                                <td style="padding:0.75rem; text-align:right; font-weight:600;">
+                                                    ${isOwner ? '-' : `
+                                                        ¥${Math.round(c.wage).toLocaleString()}
+                                                        <span style="font-size:0.75rem; color:#64748b; font-weight:normal; margin-left:0.25rem;">(¥${c.rate}/h)</span>
+                                                    `}
+                                                </td>
+                                            </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                                ` : `
+                                <div style="padding:1.5rem; text-align:center; color:#94a3b8; font-size:0.9rem;">
+                                    現在、固定授業スケジュールの担当はありません。
+                                </div>
+                                `}
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 
