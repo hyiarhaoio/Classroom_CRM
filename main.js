@@ -1972,18 +1972,14 @@ function renderInstructorAnalytics() {
         const rate = getWageRate(t, cls.day, cls.course);
         const wage = duration * rate;
 
-        // クラスのカテゴリ分け（知育、受験、HALLO、アストルム、その他）
-        let category = 'その他';
-        if (['PD', 'D', 'T', 'Q', 'C', 'S'].some(k => cls.course.includes(k)) || cls.course.includes('知育')) {
-            category = '知育';
-        } else if (cls.course.includes('受験')) {
+        // クラスのカテゴリ分け（PD, D, T, Q, C, Sなどを個別に保持）
+        let category = cls.course || 'その他';
+        if (cls.course.includes('受験')) {
             category = '受験';
         } else if (cls.course.includes('HALLO')) {
             category = 'HALLO';
         } else if (cls.course.includes('アストルム')) {
             category = 'アストルム';
-        } else {
-            category = cls.course;
         }
 
         teacherStats[t].courseCounts[category] = (teacherStats[t].courseCounts[category] || 0) + 1;
