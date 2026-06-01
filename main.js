@@ -1052,6 +1052,7 @@ function renderStudentList() {
                         <option value="considering">検討中</option>
                         <option value="trial_booked">体験予約</option>
                         <option value="joined">入会済</option>
+                        <option value="suspended">休会中</option>
                         <option value="withdrawn">退会</option>
                     </select>
                     <!-- Search buttons removed as they are now instant/on-change, but kept Clear -->
