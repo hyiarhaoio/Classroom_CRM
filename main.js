@@ -807,11 +807,11 @@ function renderDashboard() {
         ['inquiry_received', 'considering_incoming', 'considering_outgoing', 'considering_longterm'].includes(s.status)
     ).length;
     const trials = students.filter(s => s.status === 'trial_booked').length;
-    const joined = students.filter(s => s.status === 'joined').length;
+    const joined = students.filter(s => ['joined', 'suspended'].includes(s.status)).length;
     const prospects = students.filter(s => ['considering_longterm', 'declined', 'unresponsive'].includes(s.status)).length;
 
     // --- Calculate Total Revenue for Dashboard ---
-    const joinedStudents = students.filter(s => s.status === 'joined');
+    const joinedStudents = students.filter(s => ['joined', 'suspended'].includes(s.status));
     let totalRevenue = 0;
     const coursePrices = {
         'PDクラス': 13860,
@@ -1547,7 +1547,7 @@ async function renderAnalytics(year = null) {
     const studentsSnapshot = await getDocs(studentsCollection);
     const allStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const currentJoinedCount = allStudents.filter(s => s.status === 'joined').length;
+    const currentJoinedCount = allStudents.filter(s => ['joined', 'suspended'].includes(s.status)).length;
 
     // --- Calculate Monthly Stats ---
     months.forEach(m => {
@@ -1565,7 +1565,7 @@ async function renderAnalytics(year = null) {
             }
 
             // Contracts (Actual join date in this month)
-            if (s.status === 'joined' && s.joinedDate) {
+            if (['joined', 'suspended'].includes(s.status) && s.joinedDate) {
                 const jDate = new Date(s.joinedDate);
                 if (jDate >= mStart && jDate <= mEnd) {
                     m.contracts++;
@@ -1590,7 +1590,7 @@ async function renderAnalytics(year = null) {
         // Logic: Joined <= MonthEnd AND (Not Withdrawn OR Withdrawn > MonthEnd)
         m.totalActive = allStudents.filter(s => {
             // Must be formally joined (or was joined) to be counted
-            if (!['joined', 'withdrawn'].includes(s.status)) return false;
+            if (!['joined', 'suspended', 'withdrawn'].includes(s.status)) return false;
 
             if (!s.joinedDate) return false;
             const jDate = new Date(s.joinedDate);
@@ -1612,7 +1612,7 @@ async function renderAnalytics(year = null) {
     const totalInquiriesYear = months.reduce((a, b) => a + b.inquiries, 0);
 
     // --- Calculate Course Breakdown Stats ---
-    const joinedStudents = allStudents.filter(s => s.status === 'joined');
+    const joinedStudents = allStudents.filter(s => ['joined', 'suspended'].includes(s.status));
     // const totalJoined = joinedStudents.length; // Already defined as currentJoinedCount
 
     const breakdown = {
