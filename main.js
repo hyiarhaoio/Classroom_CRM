@@ -1916,7 +1916,7 @@ function renderInstructorAnalytics() {
     const allStudents = state.students;
 
     // --- Calculate Instructor Stats ---
-    const activeStudents = allStudents.filter(s => ['joined', 'suspended'].includes(s.status));
+    const activeStudents = allStudents.filter(s => s.status === 'joined');
     const uniqueClasses = new Map();
 
     activeStudents.forEach(s => {
