@@ -2053,6 +2053,7 @@ function renderInstructorAnalytics() {
                         const cCount = stats.classes.filter(c => c.course.includes('C')).length;
                         const sCount = stats.classes.filter(c => c.course.includes('S')).length;
                         const astrumCount = stats.classes.filter(c => c.course.includes('アストルム')).length;
+                        const halloCount = stats.classes.filter(c => c.course.includes('HALLO')).length;
                         const examCount = stats.classes.filter(c => c.course.includes('受験')).length;
 
                         return `
@@ -2092,7 +2093,7 @@ function renderInstructorAnalytics() {
                                     <div style="font-size:0.8rem; font-weight:bold; color:#64748b; display:flex; align-items:center; gap:0.25rem;">
                                         <i class="ri-grid-line"></i> コース別担当コマ数
                                     </div>
-                                    <div style="display: grid; grid-template-columns: repeat(8, minmax(65px, 1fr)); gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; text-align: center; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                    <div style="display: grid; grid-template-columns: repeat(9, minmax(65px, 1fr)); gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; text-align: center; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                                         <!-- 上の段: 項目名 -->
                                         <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">PD</div>
                                         <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">D</div>
@@ -2101,6 +2102,7 @@ function renderInstructorAnalytics() {
                                         <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">C</div>
                                         <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">S</div>
                                         <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569; font-size:0.75rem;">アストルム</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">HALLO</div>
                                         <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">受験</div>
                                         
                                         <!-- 下の段: コマ数 -->
@@ -2111,6 +2113,7 @@ function renderInstructorAnalytics() {
                                         <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${cCount > 0 ? '#1d4ed8' : '#94a3b8'};">${cCount}</div>
                                         <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${sCount > 0 ? '#1d4ed8' : '#94a3b8'};">${sCount}</div>
                                         <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${astrumCount > 0 ? '#7c3aed' : '#94a3b8'};">${astrumCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${halloCount > 0 ? '#1d4ed8' : '#94a3b8'};">${halloCount}</div>
                                         <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${examCount > 0 ? '#dc2626' : '#94a3b8'};">${examCount}</div>
                                     </div>
                                 </div>
