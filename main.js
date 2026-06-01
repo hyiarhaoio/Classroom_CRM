@@ -1995,12 +1995,52 @@ function renderInstructorAnalytics() {
         teacherStats[t].totalSlots += 1;
     });
 
+    // --- Calculate Study Hours for Each Teacher ---
+    const targetCourses = ['PD', 'D', 'T', 'Q', 'C', 'S', 'アストルム', 'HALLO', '受験'];
+    
+    Object.keys(teacherStats).forEach(t => {
+        const stats = teacherStats[t];
+        stats.studyHoursList = [];
+        stats.weeklyStudyWage = 0;
+        stats.totalStudyHours = 0;
+
+        targetCourses.forEach(courseKey => {
+            const matchingClasses = stats.classes.filter(c => {
+                if (courseKey === 'D') {
+                    return c.course.includes('D') && !c.course.includes('PD');
+                }
+                return c.course.includes(courseKey);
+            });
+
+            if (matchingClasses.length > 0) {
+                stats.totalStudyHours += 0.5;
+
+                const refClass = matchingClasses[0];
+                const rate = getWageRate(t, refClass.day, refClass.course);
+                const wage = 0.5 * rate;
+                
+                stats.weeklyStudyWage += wage;
+
+                stats.studyHoursList.push({
+                    course: courseKey,
+                    hours: 0.5,
+                    rate: rate,
+                    wage: wage
+                });
+            }
+        });
+
+        // 勉強時間報酬を含んだ個人想定報酬合計
+        stats.totalWeeklyWageIncludingStudy = stats.totalWage + stats.weeklyStudyWage;
+        stats.totalMonthlyWageIncludingStudy = (stats.totalWage * 4) + (stats.weeklyStudyWage * 4);
+    });
+
     // Calculate Totals for Summary
     let totalAllSlots = 0;
     let totalAllWeeklyWage = 0;
     Object.values(teacherStats).forEach(s => {
         totalAllSlots += s.totalSlots;
-        totalAllWeeklyWage += s.totalWage;
+        totalAllWeeklyWage += s.totalWeeklyWageIncludingStudy; // 授業 + 勉強時間
     });
 
     contentArea.innerHTML = `
@@ -2071,15 +2111,15 @@ function renderInstructorAnalytics() {
                                 <div style="display:flex; gap:1.5rem; align-items:center;">
                                     <div style="text-align:right;">
                                         <span style="font-size:0.8rem; color:#64748b; display:block;">週間想定報酬</span>
-                                        <span style="font-size:1.15rem; font-weight:bold; color:${isOwner ? '#64748b' : '#16a34a'};">
-                                            ${isOwner ? '対象外' : `¥${Math.round(stats.totalWage).toLocaleString()}`}
+                                        <span style="font-size:1.15rem; font-weight:bold; color:${isOwner ? '#64748b' : '#16a34a'};" title="内訳: 授業 ¥${Math.round(stats.totalWage).toLocaleString()} + 勉強手当 ¥${Math.round(stats.weeklyStudyWage).toLocaleString()}">
+                                            ${isOwner ? '対象外' : `¥${Math.round(stats.totalWeeklyWageIncludingStudy).toLocaleString()}`}
                                         </span>
                                     </div>
                                     <div style="width:1px; height:24px; background:#cbd5e1;"></div>
                                     <div style="text-align:right;">
                                         <span style="font-size:0.8rem; color:#64748b; display:block;">月間想定報酬 (4週)</span>
-                                        <span style="font-size:1.15rem; font-weight:bold; color:${isOwner ? '#64748b' : '#2563eb'};">
-                                            ${isOwner ? '対象外' : `¥${Math.round(stats.totalWage * 4).toLocaleString()}`}
+                                        <span style="font-size:1.15rem; font-weight:bold; color:${isOwner ? '#64748b' : '#2563eb'};" title="内訳: 授業 ¥${Math.round(stats.totalWage * 4).toLocaleString()} + 勉強手当 ¥${Math.round(stats.weeklyStudyWage * 4).toLocaleString()}">
+                                            ${isOwner ? '対象外' : `¥${Math.round(stats.totalMonthlyWageIncludingStudy).toLocaleString()}`}
                                         </span>
                                     </div>
                                 </div>
@@ -2088,34 +2128,55 @@ function renderInstructorAnalytics() {
                             <!-- 担当クラス一覧 -->
                             <div style="padding:1rem; overflow-x:auto;">
                                 ${hasClasses ? `
-                                <!-- コース別担当コマ数内訳ミニテーブル -->
-                                <div style="margin-bottom: 1.5rem; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; width: fit-content; display:flex; flex-direction:column; gap:0.4rem;">
-                                    <div style="font-size:0.8rem; font-weight:bold; color:#64748b; display:flex; align-items:center; gap:0.25rem;">
-                                        <i class="ri-grid-line"></i> コース別担当コマ数
+                                <!-- コース別担当コマ数内訳ミニテーブル＆勉強時間手当の横並びコンテナ -->
+                                <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: stretch;">
+                                    
+                                    <!-- コース別担当コマ数内訳ミニテーブル -->
+                                    <div style="background: #f8fafc; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; width: fit-content; display:flex; flex-direction:column; gap:0.4rem; justify-content:center;">
+                                        <div style="font-size:0.8rem; font-weight:bold; color:#64748b; display:flex; align-items:center; gap:0.25rem;">
+                                            <i class="ri-grid-line"></i> コース別担当コマ数
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: repeat(9, minmax(65px, 1fr)); gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; text-align: center; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                            <!-- 上の段: 項目名 -->
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">PD</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">D</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">T</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">Q</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">C</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">S</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569; font-size:0.75rem;">アストルム</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">HALLO</div>
+                                            <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">受験</div>
+                                            
+                                            <!-- 下の段: コマ数 -->
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${pdCount > 0 ? '#1d4ed8' : '#94a3b8'};">${pdCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${dCount > 0 ? '#1d4ed8' : '#94a3b8'};">${dCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${tCount > 0 ? '#1d4ed8' : '#94a3b8'};">${tCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${qCount > 0 ? '#1d4ed8' : '#94a3b8'};">${qCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${cCount > 0 ? '#1d4ed8' : '#94a3b8'};">${cCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${sCount > 0 ? '#1d4ed8' : '#94a3b8'};">${sCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${astrumCount > 0 ? '#7c3aed' : '#94a3b8'};">${astrumCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${halloCount > 0 ? '#1d4ed8' : '#94a3b8'};">${halloCount}</div>
+                                            <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${examCount > 0 ? '#dc2626' : '#94a3b8'};">${examCount}</div>
+                                        </div>
                                     </div>
-                                    <div style="display: grid; grid-template-columns: repeat(9, minmax(65px, 1fr)); gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; text-align: center; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                                        <!-- 上の段: 項目名 -->
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">PD</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">D</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">T</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">Q</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">C</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">S</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569; font-size:0.75rem;">アストルム</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">HALLO</div>
-                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">受験</div>
-                                        
-                                        <!-- 下の段: コマ数 -->
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${pdCount > 0 ? '#1d4ed8' : '#94a3b8'};">${pdCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${dCount > 0 ? '#1d4ed8' : '#94a3b8'};">${dCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${tCount > 0 ? '#1d4ed8' : '#94a3b8'};">${tCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${qCount > 0 ? '#1d4ed8' : '#94a3b8'};">${qCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${cCount > 0 ? '#1d4ed8' : '#94a3b8'};">${cCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${sCount > 0 ? '#1d4ed8' : '#94a3b8'};">${sCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${astrumCount > 0 ? '#7c3aed' : '#94a3b8'};">${astrumCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${halloCount > 0 ? '#1d4ed8' : '#94a3b8'};">${halloCount}</div>
-                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${examCount > 0 ? '#dc2626' : '#94a3b8'};">${examCount}</div>
+
+                                    <!-- 勉強時間手当の表示 -->
+                                    <div style="background: #fffbeb; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid #fef3c7; width: fit-content; display:flex; flex-direction:column; gap:0.4rem; justify-content:center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                        <div style="font-size:0.8rem; font-weight:bold; color:#b45309; display:flex; align-items:center; gap:0.25rem;">
+                                            <i class="ri-book-open-line"></i> 勉強時間手当 (週30分/コース)
+                                        </div>
+                                        <div style="font-size:0.8rem; color:#78350f; font-weight:500;">
+                                            対象: ${stats.studyHoursList.map(s => `<span style="background:#fef3c7; border: 1px solid #fde047; padding:1px 4px; border-radius:4px; margin-right:3px; font-size:0.75rem;">${s.course}</span>`).join('') || '<span style="color:#94a3b8;">対象なし</span>'}
+                                        </div>
+                                        <div style="font-size:0.8rem; color:#78350f;">
+                                            週間勉強時間: <b style="font-size:0.95rem; color:#b45309;">${stats.totalStudyHours * 60}分</b> (週間手当: <b style="font-size:0.95rem; color:#b45309;">${isOwner ? '対象外' : `¥${Math.round(stats.weeklyStudyWage).toLocaleString()}`}</b>)
+                                        </div>
+                                        <div style="font-size:0.75rem; color:#92400e; border-top:1px dashed #fde047; padding-top:0.25rem; margin-top:0.1rem;">
+                                            月換算 (4週): <b>${(stats.totalStudyHours * 60 * 4) / 60}時間 (${stats.totalStudyHours * 60 * 4}分)</b> (月間想定手当: <b>${isOwner ? '対象外' : `¥${Math.round(stats.weeklyStudyWage * 4).toLocaleString()}`}</b>)
+                                        </div>
                                     </div>
+
                                 </div>
 
                                 <table style="width:100%; border-collapse:collapse; font-size:0.85rem; text-align:left;">
