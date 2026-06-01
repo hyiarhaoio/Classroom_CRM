@@ -2045,11 +2045,15 @@ function renderInstructorAnalytics() {
                         const hasClasses = stats.classes.length > 0;
                         const isOwner = ['平井', '末永'].includes(teacherName);
                         
-                        // コース内訳表示文字列の生成
-                        const courseDetails = Object.entries(stats.courseCounts || {})
-                            .map(([cat, count]) => `${cat}: ${count}コマ`)
-                            .join(', ');
-                        const courseDetailsText = courseDetails ? ` (${courseDetails})` : '';
+                        // 個別コース別コマ数集計
+                        const pdCount = stats.classes.filter(c => c.course.includes('PD')).length;
+                        const dCount = stats.classes.filter(c => c.course.includes('D') && !c.course.includes('PD')).length;
+                        const tCount = stats.classes.filter(c => c.course.includes('T')).length;
+                        const qCount = stats.classes.filter(c => c.course.includes('Q')).length;
+                        const cCount = stats.classes.filter(c => c.course.includes('C')).length;
+                        const sCount = stats.classes.filter(c => c.course.includes('S')).length;
+                        const astrumCount = stats.classes.filter(c => c.course.includes('アストルム')).length;
+                        const examCount = stats.classes.filter(c => c.course.includes('受験')).length;
 
                         return `
                         <div style="border: 1px solid #e2e8f0; border-radius:0.75rem; overflow:hidden; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -2060,7 +2064,7 @@ function renderInstructorAnalytics() {
                                         ${teacherName}
                                     </span>
                                     <span style="font-size:0.9rem; color:#64748b;">
-                                        担当クラス数: <b style="color:#1e3a8a; font-size:1.1rem;">${stats.totalSlots}</b> コマ<span style="color:#2563eb; font-weight:500;">${courseDetailsText}</span> (${stats.totalHours.toFixed(1)}時間)
+                                        担当クラス数: <b style="color:#1e3a8a; font-size:1.1rem;">${stats.totalSlots}</b> コマ (${stats.totalHours.toFixed(1)}時間)
                                     </span>
                                 </div>
                                 <div style="display:flex; gap:1.5rem; align-items:center;">
@@ -2083,6 +2087,34 @@ function renderInstructorAnalytics() {
                             <!-- 担当クラス一覧 -->
                             <div style="padding:1rem; overflow-x:auto;">
                                 ${hasClasses ? `
+                                <!-- コース別担当コマ数内訳ミニテーブル -->
+                                <div style="margin-bottom: 1.5rem; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; width: fit-content; display:flex; flex-direction:column; gap:0.4rem;">
+                                    <div style="font-size:0.8rem; font-weight:bold; color:#64748b; display:flex; align-items:center; gap:0.25rem;">
+                                        <i class="ri-grid-line"></i> コース別担当コマ数
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: repeat(8, minmax(65px, 1fr)); gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; text-align: center; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                        <!-- 上の段: 項目名 -->
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">PD</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">D</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">T</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">Q</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">C</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">S</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569; font-size:0.75rem;">アストルム</div>
+                                        <div style="background: #f1f5f9; padding: 6px 4px; font-weight: bold; color: #475569;">受験</div>
+                                        
+                                        <!-- 下の段: コマ数 -->
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${pdCount > 0 ? '#1d4ed8' : '#94a3b8'};">${pdCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${dCount > 0 ? '#1d4ed8' : '#94a3b8'};">${dCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${tCount > 0 ? '#1d4ed8' : '#94a3b8'};">${tCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${qCount > 0 ? '#1d4ed8' : '#94a3b8'};">${qCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${cCount > 0 ? '#1d4ed8' : '#94a3b8'};">${cCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${sCount > 0 ? '#1d4ed8' : '#94a3b8'};">${sCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${astrumCount > 0 ? '#7c3aed' : '#94a3b8'};">${astrumCount}</div>
+                                        <div style="background: #fff; padding: 8px 4px; font-weight: bold; font-size: 1.05rem; color: ${examCount > 0 ? '#dc2626' : '#94a3b8'};">${examCount}</div>
+                                    </div>
+                                </div>
+
                                 <table style="width:100%; border-collapse:collapse; font-size:0.85rem; text-align:left;">
                                     <thead>
                                         <tr style="border-bottom:2px solid #e2e8f0; color:#475569; font-weight:bold; background:#f8fafc;">
@@ -2120,7 +2152,7 @@ function renderInstructorAnalytics() {
                                 </table>
                                 ` : `
                                 <div style="padding:1.5rem; text-align:center; color:#94a3b8; font-size:0.9rem;">
-                                    現在、固定授業スケジュールの担当はありません。
+                                    現在, 固定授業スケジュールの担当はありません。
                                 </div>
                                 `}
                             </div>
