@@ -93,6 +93,7 @@ const STATUS_DEFINITIONS = [
     { value: 'considering_longterm', label: '長期検討', color: '#475569', bg: '#f1f5f9' },
     { value: 'trial_booked', label: '体験予約中', color: '#ca8a04', bg: '#fef9c3' },
     { value: 'joined', label: '入会済み', color: '#16a34a', bg: '#dcfce7' },
+    { value: 'suspended', label: '休会中', color: '#16a34a', bg: '#dcfce7' },
     { value: 'declined', label: '不承認', color: '#dc2626', bg: '#fee2e2' },
     { value: 'unresponsive', label: '音信不通', color: '#9ca3af', bg: '#f3f4f6' },
     { value: 'withdrawn', label: '退会', color: '#57534e', bg: '#e7e5e4' }
@@ -101,6 +102,8 @@ const STATUS_DEFINITIONS = [
 const STATUS_MAP = {
     '入会済': 'joined',
     '入会済み': 'joined',
+    '休会': 'suspended',
+    '休会中': 'suspended',
     '不承認': 'declined',
     '退会': 'withdrawn',
     '音信不通': 'unresponsive',
@@ -971,6 +974,7 @@ function renderStudentList() {
         // 1. Status Filter
         if (state.filterStatus) {
             if (state.filterStatus === 'considering') displayList = displayList.filter(s => s.status && s.status.startsWith('considering'));
+            else if (state.filterStatus === 'joined') displayList = displayList.filter(s => ['joined', 'suspended'].includes(s.status));
             else if (state.filterStatus === 'other') displayList = displayList.filter(s => s.status && ['declined', 'unresponsive'].includes(s.status));
             else if (state.filterStatus === 'prospects_group') displayList = displayList.filter(s => ['considering_longterm', 'declined', 'unresponsive'].includes(s.status));
             else displayList = displayList.filter(s => s.status === state.filterStatus);
@@ -1246,6 +1250,7 @@ function renderForm(id = null) {
                         <option value="considering_longterm" ${data.status === 'considering_longterm' ? 'selected' : ''}>長期検討</option>
                         <option value="trial_booked" ${data.status === 'trial_booked' ? 'selected' : ''}>体験予約済み</option>
                         <option value="joined" ${data.status === 'joined' ? 'selected' : ''}>入会済み</option>
+                        <option value="suspended" ${data.status === 'suspended' ? 'selected' : ''}>休会中</option>
                         <option value="declined" ${data.status === 'declined' ? 'selected' : ''}>不承認</option>
                         <option value="unresponsive" ${data.status === 'unresponsive' ? 'selected' : ''}>音信不通</option>
                         <option value="withdrawn" ${data.status === 'withdrawn' ? 'selected' : ''}>退会</option>
@@ -2724,7 +2729,7 @@ function renderCalendar() {
                         students: []
                     });
                 }
-                scheduleMap.get(key).students.push({ name: s.name, id: s.id });
+                scheduleMap.get(key).students.push({ name: s.name, id: s.id, status: s.status });
             });
         }
     });
@@ -2776,12 +2781,15 @@ function renderCalendar() {
                 const endMin = ((eh - startHour) * 60 + em) * pixelPerMinute;
                 const height = endMin - startMin;
 
+                const hasSuspendedStudent = slot.students.some(st => st.status === 'suspended');
+
                 // Color coding by Course (rough logic)
                 let bgColor = '#eff6ff'; // blueish (HALLO)
                 let brdColor = '#2563eb';
 
-                // Chiiku (Yellow) includes specific class codes
-                if (['知育', 'PD', 'D', 'T', 'Q', 'C', 'S'].some(k => slot.course.includes(k))) {
+                if (hasSuspendedStudent) {
+                    bgColor = '#dcfce7'; brdColor = '#16a34a'; // 休会中の生徒がいれば緑色
+                } else if (['知育', 'PD', 'D', 'T', 'Q', 'C', 'S'].some(k => slot.course.includes(k))) {
                     bgColor = '#fef9c3'; brdColor = '#d97706';
                 }
 
