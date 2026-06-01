@@ -1,5 +1,5 @@
-// CRM Logic - Updated 2026-04-26 to force cache clear
-console.log('Classroom CRM loaded: 2026-04-26 14:27');
+// CRM Logic - Updated 2026-06-01 to force cache clear
+console.log('Classroom CRM loaded: 2026-06-01 13:18');
 
 /**
  * Classroom CRM Logic - Firebase Enabled Version
