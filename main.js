@@ -3250,17 +3250,51 @@ async function fetchTransferRequests() {
     return data.requests || [];
 }
 
-function renderTransfers() {
+async function fetchTransferSlots() {
+    const url = `${TRANSFER_API_URL}?key=${encodeURIComponent(TRANSFER_API_KEY)}&action=slots`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '不明なエラー');
+    return data.slots || [];
+}
+
+async function updateTransferSlotApi(slotId, updates) {
+    const body = new URLSearchParams(Object.assign({ key: TRANSFER_API_KEY, action: 'updateSlot', slotId }, updates));
+    const res = await fetch(TRANSFER_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '不明なエラー');
+    return data;
+}
+
+let _transferCurrentView = 'requests';
+let _transferSlotsCache = [];
+
+function renderTransfers(view) {
+    _transferCurrentView = view || _transferCurrentView || 'requests';
     document.body.classList.remove('view-dashboard', 'view-students');
     pageTitle.textContent = '振替管理';
 
+    const isRequests = _transferCurrentView === 'requests';
+
     contentArea.innerHTML = `
         <div class="data-table-container">
-            <div style="padding: 1.5rem; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border-bottom: 1px solid var(--border);">
-                <div id="transfer-count-display" style="font-size:0.85rem; color:#64748b;">読み込み中...</div>
-                <button class="btn-secondary" onclick="renderTransfers()"><i class="ri-refresh-line"></i> 更新</button>
+            <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="${isRequests ? 'btn-primary' : 'btn-secondary'}" onclick="renderTransfers('requests')">申請一覧</button>
+                    <button class="${!isRequests ? 'btn-primary' : 'btn-secondary'}" onclick="renderTransfers('slots')">受入枠設定</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:1rem;">
+                    <div id="transfer-count-display" style="font-size:0.85rem; color:#64748b;">読み込み中...</div>
+                    <button class="btn-secondary" onclick="renderTransfers('${_transferCurrentView}')"><i class="ri-refresh-line"></i> 更新</button>
+                </div>
             </div>
-            <div id="transfer-table-wrap">
+            <div id="transfer-body-wrap">
                 <div style="padding: 3rem; text-align:center; color:#94a3b8;">
                     <i class="ri-loader-4-line" style="font-size:1.5rem;"></i><br>振替受付システムからデータを取得しています...
                 </div>
@@ -3268,11 +3302,19 @@ function renderTransfers() {
         </div>
     `;
 
+    if (isRequests) {
+        renderTransferRequestsBody();
+    } else {
+        renderTransferSlotsBody();
+    }
+}
+
+function renderTransferRequestsBody() {
     fetchTransferRequests().then(requests => {
         const countEl = document.getElementById('transfer-count-display');
         if (countEl) countEl.textContent = `${requests.length}件（直近90日）`;
 
-        const wrap = document.getElementById('transfer-table-wrap');
+        const wrap = document.getElementById('transfer-body-wrap');
         if (!wrap) return;
 
         if (requests.length === 0) {
@@ -3309,13 +3351,130 @@ function renderTransfers() {
             </table>
         `;
     }).catch(err => {
-        const wrap = document.getElementById('transfer-table-wrap');
+        const wrap = document.getElementById('transfer-body-wrap');
         if (wrap) wrap.innerHTML = `<div style="padding:2rem; color:red;">振替データの取得に失敗しました。<br>${err.message}</div>`;
         const countEl = document.getElementById('transfer-count-display');
         if (countEl) countEl.textContent = 'エラー';
     });
 }
+
+function renderTransferSlotsBody() {
+    fetchTransferSlots().then(slots => {
+        _transferSlotsCache = slots;
+        const countEl = document.getElementById('transfer-count-display');
+        if (countEl) countEl.textContent = `${slots.length}枠（直近5週間）`;
+
+        const wrap = document.getElementById('transfer-body-wrap');
+        if (!wrap) return;
+
+        if (slots.length === 0) {
+            wrap.innerHTML = `<div style="padding:3rem; text-align:center; color:#94a3b8;">表示できる振替枠がありません。</div>`;
+            return;
+        }
+
+        const courses = Array.from(new Set(slots.map(s => s.course).filter(Boolean)));
+
+        wrap.innerHTML = `
+            <div style="padding: 0.75rem 1.5rem; display:flex; align-items:center; gap:0.5rem; border-bottom:1px solid var(--border); background:#fff;">
+                <label style="font-size:0.8rem; color:#64748b;">コースで絞り込み：</label>
+                <select id="transfer-slot-course-filter" onchange="filterTransferSlotsTable()" style="padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.85rem;">
+                    <option value="">すべて</option>
+                    ${courses.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="transfer-slots-table">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>曜日</th>
+                            <th>時間</th>
+                            <th>クラス</th>
+                            <th>コース</th>
+                            <th>在籍</th>
+                            <th>受入上限</th>
+                            <th>残席</th>
+                            <th>受付可否</th>
+                            <th>備考</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="transfer-slots-tbody">
+                        ${slots.map(renderTransferSlotRow).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }).catch(err => {
+        const wrap = document.getElementById('transfer-body-wrap');
+        if (wrap) wrap.innerHTML = `<div style="padding:2rem; color:red;">振替枠データの取得に失敗しました。<br>${err.message}</div>`;
+        const countEl = document.getElementById('transfer-count-display');
+        if (countEl) countEl.textContent = 'エラー';
+    });
+}
+
+function renderTransferSlotRow(s) {
+    return `
+        <tr data-slot-row="${s.slotId}" data-course="${s.course || ''}">
+            <td style="white-space:nowrap;">${s.date || ''}</td>
+            <td>${s.weekday || ''}</td>
+            <td style="white-space:nowrap;">${s.startTime || ''}-${s.endTime || ''}</td>
+            <td>${s.className || s.classId || ''}</td>
+            <td>${s.course || ''}</td>
+            <td style="text-align:center;">${s.enrolledCount ?? ''}</td>
+            <td><input type="number" min="0" data-field="capacity" value="${s.capacity ?? 0}" style="width:4rem; padding:0.2rem 0.4rem; border:1px solid var(--border); border-radius:4px;"></td>
+            <td style="text-align:center; color:${(s.remaining ?? 0) <= 0 ? '#dc2626' : '#16a34a'}; font-weight:600;">${s.remaining ?? ''}</td>
+            <td>
+                <select data-field="acceptable" style="padding:0.2rem 0.4rem; border:1px solid var(--border); border-radius:4px;">
+                    <option value="可" ${s.acceptable === '可' ? 'selected' : ''}>可</option>
+                    <option value="不可" ${s.acceptable === '不可' ? 'selected' : ''}>不可</option>
+                </select>
+            </td>
+            <td><input type="text" data-field="note" value="${(s.note || '').replace(/"/g, '&quot;')}" placeholder="備考" style="width:8rem; padding:0.2rem 0.4rem; border:1px solid var(--border); border-radius:4px;"></td>
+            <td>
+                <button class="btn-secondary" data-save-btn style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="saveTransferSlotRow('${s.slotId}')">保存</button>
+            </td>
+        </tr>
+    `;
+}
+
+window.filterTransferSlotsTable = function () {
+    const filterEl = document.getElementById('transfer-slot-course-filter');
+    const course = filterEl ? filterEl.value : '';
+    document.querySelectorAll('#transfer-slots-tbody tr[data-slot-row]').forEach(tr => {
+        tr.style.display = (!course || tr.getAttribute('data-course') === course) ? '' : 'none';
+    });
+};
+
+window.saveTransferSlotRow = async function (slotId) {
+    const row = document.querySelector(`tr[data-slot-row="${slotId}"]`);
+    if (!row) return;
+    const capacityInput = row.querySelector('[data-field="capacity"]');
+    const acceptableSelect = row.querySelector('[data-field="acceptable"]');
+    const noteInput = row.querySelector('[data-field="note"]');
+    const btn = row.querySelector('[data-save-btn]');
+    const originalLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ri-loader-4-line"></i>';
+    try {
+        await updateTransferSlotApi(slotId, {
+            capacity: capacityInput.value,
+            acceptable: acceptableSelect.value,
+            note: noteInput.value
+        });
+        btn.innerHTML = '<i class="ri-check-line"></i> 保存済';
+        setTimeout(() => {
+            if (btn.isConnected) { btn.innerHTML = originalLabel; btn.disabled = false; }
+        }, 1500);
+    } catch (err) {
+        alert('保存に失敗しました：' + err.message);
+        btn.innerHTML = originalLabel;
+        btn.disabled = false;
+    }
+};
+
 window.renderTransfers = renderTransfers;
+
 
 // --- Global Export ---
 window.init = init;
