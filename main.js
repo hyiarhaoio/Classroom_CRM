@@ -524,6 +524,7 @@ function handleRoute() {
             case 'school_edit': renderSchoolForm(state.currentId); break;
             case 'calendar': renderCalendar(); break;
             case 'instructor_analytics': renderInstructorAnalytics(); break;
+            case 'transfers': renderTransfers(); break;
             case 'iq_list': renderIqList(); break; // New IQ List route
             default: renderDashboard();
         }
@@ -3220,6 +3221,101 @@ function renderCalendar() {
         </div>
     `;
 }
+
+
+// --- Transfer (振替) Management - reads from the 振替受付システム Apps Script API ---
+const TRANSFER_API_URL = 'https://script.google.com/macros/s/AKfycby9yWgjG-8EQ7hNH7zma5sHUHz-dC-5Ok-2FTgeLAYK1S3q1TbAFCnugZwX6cScGKtF/exec';
+const TRANSFER_API_KEY = 'a33b48af46ee44e8b891651a886057e0';
+
+const TRANSFER_STATUS_STYLE = {
+    '確定': { bg: '#dcfce7', color: '#16a34a' },
+    '要確認': { bg: '#fef9c3', color: '#ca8a04' },
+    '要相談': { bg: '#dbeafe', color: '#2563eb' },
+    'ERROR': { bg: '#fee2e2', color: '#dc2626' },
+    '取消': { bg: '#f1f5f9', color: '#64748b' }
+};
+
+function getTransferStatusBadge(st) {
+    const s = TRANSFER_STATUS_STYLE[st];
+    if (s) return `<span class="badge" style="background:${s.bg}; color:${s.color}">${st}</span>`;
+    return st || '-';
+}
+
+async function fetchTransferRequests() {
+    const url = `${TRANSFER_API_URL}?key=${encodeURIComponent(TRANSFER_API_KEY)}&action=requests`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '不明なエラー');
+    return data.requests || [];
+}
+
+function renderTransfers() {
+    document.body.classList.remove('view-dashboard', 'view-students');
+    pageTitle.textContent = '振替管理';
+
+    contentArea.innerHTML = `
+        <div class="data-table-container">
+            <div style="padding: 1.5rem; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <div id="transfer-count-display" style="font-size:0.85rem; color:#64748b;">読み込み中...</div>
+                <button class="btn-secondary" onclick="renderTransfers()"><i class="ri-refresh-line"></i> 更新</button>
+            </div>
+            <div id="transfer-table-wrap">
+                <div style="padding: 3rem; text-align:center; color:#94a3b8;">
+                    <i class="ri-loader-4-line" style="font-size:1.5rem;"></i><br>振替受付システムからデータを取得しています...
+                </div>
+            </div>
+        </div>
+    `;
+
+    fetchTransferRequests().then(requests => {
+        const countEl = document.getElementById('transfer-count-display');
+        if (countEl) countEl.textContent = `${requests.length}件（直近90日）`;
+
+        const wrap = document.getElementById('transfer-table-wrap');
+        if (!wrap) return;
+
+        if (requests.length === 0) {
+            wrap.innerHTML = `<div style="padding:3rem; text-align:center; color:#94a3b8;">振替申請はまだありません。</div>`;
+            return;
+        }
+
+        wrap.innerHTML = `
+            <table id="transfers-table">
+                <thead>
+                    <tr>
+                        <th>受付ID</th>
+                        <th>生徒名</th>
+                        <th>所属クラス</th>
+                        <th>振替元日付</th>
+                        <th>振替先</th>
+                        <th>ステータス</th>
+                        <th>備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${requests.map(r => `
+                        <tr>
+                            <td style="font-size:0.75rem; color:#94a3b8;">${r.receiptId || ''}</td>
+                            <td>${r.studentName || ''}</td>
+                            <td>${r.className || ''}</td>
+                            <td>${r.originDate || ''}</td>
+                            <td>${r.targetDate || r.targetLabel || ''}</td>
+                            <td>${getTransferStatusBadge(r.status)}</td>
+                            <td style="font-size:0.8rem; color:#dc2626;">${r.note || ''}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }).catch(err => {
+        const wrap = document.getElementById('transfer-table-wrap');
+        if (wrap) wrap.innerHTML = `<div style="padding:2rem; color:red;">振替データの取得に失敗しました。<br>${err.message}</div>`;
+        const countEl = document.getElementById('transfer-count-display');
+        if (countEl) countEl.textContent = 'エラー';
+    });
+}
+window.renderTransfers = renderTransfers;
 
 // --- Global Export ---
 window.init = init;
