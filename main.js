@@ -2634,7 +2634,7 @@ function renderDetail(id, focusTarget = null, isReadOnly = false) {
         }).join('')}
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
-                    ${!isReadOnly ? `<button class="btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem;" onclick="saveSchedule('${s.id}')">保存</button>` : ''}
+                    ${!isReadOnly ? `<button class="btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem;" onclick="saveSchedule('${s.id}', this)">保存</button>` : ''}
                 </div>
 
                 <h3 style="margin-top: 1.5rem;">入会後メモ</h3>
@@ -2746,7 +2746,7 @@ window.handleTimeChange = function (input) {
     }
 };
 
-window.saveSchedule = async function (id) {
+window.saveSchedule = async function (id, btn) {
     const rows = document.querySelectorAll('.schedule-slot-row');
     const scheduleData = [];
     rows.forEach(row => {
@@ -2762,12 +2762,46 @@ window.saveSchedule = async function (id) {
         }
     });
 
+    const student = state.students.find(s => s.id === id);
+    if (!student) {
+        alert('生徒情報が見つかりません');
+        return;
+    }
+
+    const originalBtnText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+    }
+
     try {
+        // 1. CRM側 (Firestore) の保存
         await updateStudent(id, { schedule: scheduleData });
-        alert('スケジュールを保存しました');
+
+        // 2. 振替受付システム (スプレッドシート) への自動同期
+        let enrollmentStatus = '在籍';
+        if (student.status === 'suspended') enrollmentStatus = '休会';
+        else if (student.status === 'withdrawn') enrollmentStatus = '退会';
+
+        // IQテストなど時間割を持たないコマは同期対象外とする
+        const syncList = scheduleData.filter(s => s.course !== 'IQテスト');
+
+        try {
+            const apiRes = await syncStudentScheduleApi(student.name, enrollmentStatus, syncList);
+            console.log('Schedule synced to spreadsheet successfully:', apiRes);
+            alert('スケジュールを保存し、スプレッドシート（振替システム）へ自動同期しました！✨');
+        } catch (apiErr) {
+            console.error('Spreadsheet sync error:', apiErr);
+            alert(`CRMへの保存は完了しましたが、スプレッドシートへの同期でエラーが発生しました:\n${apiErr.message}\n\n※クラス名や講師名が台帳に正しく登録されているかご確認ください。`);
+        }
     } catch (e) {
         console.error(e);
         alert('保存に失敗しました: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalBtnText || '保存';
+        }
     }
 };
 
@@ -3290,6 +3324,25 @@ async function fetchTransferSlots() {
 
 async function updateTransferSlotApi(slotId, updates) {
     const body = new URLSearchParams(Object.assign({ key: TRANSFER_API_KEY, action: 'updateSlot', slotId }, updates));
+    const res = await fetch(TRANSFER_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '不明なエラー');
+    return data;
+}
+
+async function syncStudentScheduleApi(studentName, enrollmentStatus, scheduleList) {
+    const body = new URLSearchParams({
+        key: TRANSFER_API_KEY,
+        action: 'syncStudentSchedule',
+        studentName: studentName,
+        enrollmentStatus: enrollmentStatus,
+        scheduleJson: JSON.stringify(scheduleList)
+    });
     const res = await fetch(TRANSFER_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
