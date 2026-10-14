@@ -3241,6 +3241,35 @@ function getTransferStatusBadge(st) {
     return st || '-';
 }
 
+const CLASS_COLOR_PALETTE = [
+    { bg: '#fef9c3', color: '#854d0e' },
+    { bg: '#dbeafe', color: '#1e40af' },
+    { bg: '#fee2e2', color: '#991b1b' },
+    { bg: '#f3e8ff', color: '#6b21a8' },
+    { bg: '#ccfbf1', color: '#0f766e' },
+    { bg: '#ffedd5', color: '#9a3412' },
+    { bg: '#fce7f3', color: '#be185d' },
+    { bg: '#dcfce7', color: '#15803d' },
+    { bg: '#e0e7ff', color: '#4338ca' },
+    { bg: '#ecfccb', color: '#4d7c0f' },
+    { bg: '#cffafe', color: '#0e7490' },
+    { bg: '#ffe4e6', color: '#be123c' }
+];
+
+function hashStringToIndex(str, mod) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+    }
+    return hash % mod;
+}
+
+function getClassColor(classId) {
+    if (!classId) return { bg: '#f1f5f9', color: '#64748b' };
+    const idx = hashStringToIndex(String(classId), CLASS_COLOR_PALETTE.length);
+    return CLASS_COLOR_PALETTE[idx];
+}
+
 async function fetchTransferRequests() {
     const url = `${TRANSFER_API_URL}?key=${encodeURIComponent(TRANSFER_API_KEY)}&action=requests`;
     const res = await fetch(url);
@@ -3390,6 +3419,7 @@ function renderTransferSlotsBody() {
                             <th>曜日</th>
                             <th>時間</th>
                             <th>クラス</th>
+                            <th>担当講師</th>
                             <th>コース</th>
                             <th>在籍</th>
                             <th>受入上限</th>
@@ -3414,12 +3444,14 @@ function renderTransferSlotsBody() {
 }
 
 function renderTransferSlotRow(s) {
+    const classColor = getClassColor(s.classId);
     return `
-        <tr data-slot-row="${s.slotId}" data-course="${s.course || ''}">
+        <tr data-slot-row="${s.slotId}" data-course="${s.course || ''}" style="border-left: 4px solid ${classColor.color};">
             <td style="white-space:nowrap;">${s.date || ''}</td>
             <td>${s.weekday || ''}</td>
             <td style="white-space:nowrap;">${s.startTime || ''}-${s.endTime || ''}</td>
-            <td>${s.className || s.classId || ''}</td>
+            <td><span class="badge" style="background:${classColor.bg}; color:${classColor.color}; white-space:nowrap;">${s.className || s.classId || ''}</span></td>
+            <td style="white-space:nowrap;">${s.teacherName || ''}</td>
             <td>${s.course || ''}</td>
             <td style="text-align:center;">${s.enrolledCount ?? ''}</td>
             <td><input type="number" min="0" data-field="capacity" value="${s.capacity ?? 0}" style="width:4rem; padding:0.2rem 0.4rem; border:1px solid var(--border); border-radius:4px;"></td>
